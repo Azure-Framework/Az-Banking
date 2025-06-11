@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AzureBanking</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            'bank-primary': '#141414',
+            'bank-accent': '#007FFF',    /* Azure blue accent */
+            'bank-secondary': '#121212',
+            'bank-success': '#27AE60',
+            'bank-error': '#E74C3C'
+          },
+          boxShadow: {
+            'azure-glow': '0 0 25px -5px rgba(0,127,255,0.2)'  /* Azure glow */
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Scroll-kit CSS -->
+  <style>
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #121212; }
+    ::-webkit-scrollbar-thumb {
+      background-color: #007FFF;     /* Azure */
+      border-radius: 4px;
+      box-shadow: 0 0 6px rgba(0,127,255,0.5);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background-color: #339CFF;     /* Lighter azure */
+      box-shadow: 0 0 8px rgba(51,156,255,0.7);
+    }
+  </style>
+
+  <!-- Flowbite & AOS -->
+  <link href="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" rel="stylesheet">
+</head>
+<body class="flex items-center justify-center bg-transparent h-screen overflow-hidden" style="display:none;">
+
+  <div id="uiWindow" class="w-[1000px] h-[800px] flex bg-[#121212] rounded-xl shadow-xl overflow-hidden border border-[#2a2a2a]">
+    <!-- Sidebar -->
+    <aside class="w-72 bg-[#141414] p-6 flex-shrink-0 border-r border-[#2a2a2a]">
+      <h1 class="text-3xl font-black text-bank-accent mb-8 animate-pulse tracking-wider">AzureBanking</h1>
+      <ul class="space-y-1">
+        <li class="nav-item p-3 rounded-lg cursor-pointer text-gray-300 hover:bg-[#1a1a1a] hover:text-white" data-page="dashboard">Dashboard</li>
+        <li class="nav-item p-3 rounded-lg cursor-pointer text-gray-300 hover:bg-[#1a1a1a] hover:text-white" data-page="accounts">Accounts</li>
+        <li class="nav-item p-3 rounded-lg cursor-pointer text-gray-300 hover:bg-[#1a1a1a] hover:text-white" data-page="transfer">Transfer</li>
+        <li class="nav-item p-3 rounded-lg cursor-pointer text-gray-300 hover:bg-[#1a1a1a] hover:text-white" data-page="payments">Payments</li>
+        <li class="nav-item p-3 rounded-lg cursor-pointer text-gray-300 hover:bg-[#1a1a1a] hover:text-white" data-page="cards">Cards</li>
+        <li class="nav-item p-3 rounded-lg cursor-pointer text-gray-300 hover:bg-[#1a1a1a] hover:text-white" data-page="profile">Profile</li>
+      </ul>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-1 p-6 overflow-y-auto">
+      <div class="flex justify-between items-center mb-8">
+        <h2 id="pageTitle" class="text-2xl font-semibold text-gray-100">Dashboard</h2>
+        <button id="btnClose" class="px-4 py-2 bg-bank-error/20 hover:bg-bank-error/30 text-bank-error rounded-lg">Close</button>
+      </div>
+
+      <div id="pages" class="space-y-6">
+        <!-- Dashboard -->
+        <section id="dashboard" class="page">
+          <div class="grid grid-cols-2 gap-6">
+            <!-- Card Preview -->
+            <div class="p-6 bg-gradient-to-br from-[#1a1a1a] to-[#141414] rounded-2xl border border-[#2a2a2a]">
+              <div class="flex justify-between items-start mb-6">
+                <div>
+                  <p class="text-sm text-gray-400">Current Balance</p>
+                  <h3 id="balance" class="text-2xl font-semibold text-white">$0.00</h3>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-bank-accent/10 flex items-center justify-center">
+                  <svg class="w-6 h-6 text-bank-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="flex justify-between items-center">
+                <div>
+                  <p class="text-xs text-gray-400 mb-1">Card Holder</p>
+                  <p id="card-name" class="font-medium text-gray-200">CARDHOLDER</p>
+                </div>
+                <div>
+                  <p class="text-xs text-gray-400 mb-1">Expires</p>
+                  <p id="card-exp" class="font-medium text-gray-200">MM/YY</p>
+                </div>
+              </div>
+              <p id="card-number" class="mt-4 text-sm font-mono text-gray-400 tracking-wider">•••• •••• •••• 0000</p>
+            </div>
+            <!-- Funds Overview -->
+            <div class="p-6 bg-[#141414] rounded-2xl border border-[#2a2a2a]">
+              <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-semibold text-gray-200">Funds Overview</h3>
+              </div>
+              <div class="space-y-4">
+                <div class="flex justify-between items-center">
+                  <span class="text-gray-300">Cash</span>
+                  <span id="cash-amt" class="font-medium text-gray-200">$0.00</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-gray-300">Bank</span>
+                  <span id="bank-amt" class="font-medium text-gray-200">$0.00</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-gray-300">Dept Paycheck</span>
+                  <span id="dept-pay" class="font-medium text-gray-200">$0.00</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Accounts -->
+        <section id="accounts" class="page hidden">
+          <h3 class="text-xl font-bold text-gray-100 mb-6">Accounts</h3>
+          <div id="accountsList" class="space-y-4"></div>
+        </section>
+
+        <!-- Transfer (Internal) -->
+        <section id="transfer" class="page hidden">
+          <h3 class="text-xl font-bold text-gray-100 mb-6">Transfer Between Accounts</h3>
+          <div class="max-w-md mx-auto space-y-4">
+            <div>
+              <label class="block text-gray-300 mb-1" for="transferFrom">From</label>
+              <select id="transferFrom"
+                      class="w-full px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200">
+                <option value="cash">Cash</option>
+                <option value="checking">Checking</option>
+                <option value="savings">Savings</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-gray-300 mb-1" for="transferTo">To</label>
+              <select id="transferTo"
+                      class="w-full px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200">
+                <option value="checking">Checking</option>
+                <option value="savings">Savings</option>
+                <option value="cash">Cash</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-gray-300 mb-1" for="transferAmt">Amount</label>
+              <input id="transferAmt" type="number" min="0" placeholder="0.00"
+                     class="w-full px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
+            </div>
+            <button id="btnTransferInternal"
+                    class="w-full py-2 bg-bank-accent hover:bg-[#339CFF] text-black font-semibold rounded-lg">
+              Transfer
+            </button>
+          </div>
+        </section>
+
+        <!-- Payments -->
+        <section id="payments" class="page hidden">
+          <h3 class="text-xl font-bold text-gray-100 mb-6">Payments</h3>
+          <div id="paymentsList" class="space-y-4 mb-6"></div>
+          <div class="p-6 bg-[#141414] rounded-2xl border border-[#2a2a2a] max-w-md mx-auto">
+            <h4 class="text-lg font-semibold text-gray-200 mb-4">Schedule Payment</h4>
+            <input id="paymentPayee" type="text" placeholder="Payee Name"
+                   class="w-full mb-2 px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
+            <input id="paymentAmt" type="number" placeholder="Amount"
+                   class="w-full mb-2 px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
+            <div class="flex gap-2 mb-4">
+              <input id="paymentDate" type="date"
+                     class="w-1/2 px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
+              <input id="paymentTime" type="time"
+                     class="w-1/2 px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
+            </div>
+            <button id="btnAddPayment"
+                    class="w-full py-2 bg-bank-accent hover:bg-[#339CFF] text-black font-semibold rounded-lg">
+              Add Payment
+            </button>
+          </div>
+        </section>
+
+        <!-- Cards -->
+        <section id="cards" class="page hidden">
+          <h3 class="text-xl font-bold text-gray-100 mb-6">Cards</h3>
+          <div id="cardsList" class="space-y-4"></div>
+        </section>
+
+        <!-- Profile -->
+        <section id="profile" class="page hidden">
+          <h3 class="text-xl font-bold text-gray-100 mb-6">Profile</h3>
+          <form id="profileForm"
+                class="max-w-md mx-auto p-6 bg-[#141414] rounded-2xl border border-[#2a2a2a] space-y-4">
+            <div class="flex justify-center">
+              <img id="profilePicPreview"
+                   class="w-24 h-24 rounded-full border-4 border-bank-accent"
+                   src="" alt="Profile Picture"/>
+            </div>
+            <input id="profilePicInput" type="url" placeholder="Profile Picture URL"
+                   class="w-full px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
+            <input id="firstNameInput" type="text" placeholder="First Name"
+                   class="w-full px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
+            <input id="lastNameInput" type="text" placeholder="Last Name"
+                   class="w-full px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
+            <button id="btnSaveProfile" type="button"
+                    class="w-full py-2 bg-bank-accent hover:bg-[#339CFF] text-black font-semibold rounded-lg">
+              Save Profile
+            </button>
+          </form>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+  <audio id="transferSound" src="https://banksound.azurewebsites.xyz"></audio>
+  <script>
+    function showPage(id) {
+      document.querySelectorAll('.page').forEach(p => p.id === id ? p.classList.remove('hidden') : p.classList.add('hidden'));
+      document.getElementById('pageTitle').innerText = id.charAt(0).toUpperCase() + id.slice(1);
+    }
+
+    function nui(evt, payload = {}) {
+      fetch(`https://${GetParentResourceName()}/${evt}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    }
+
+    window.addEventListener('message', e => {
+      const m = e.data;
+      if (m.action === 'show') document.body.style.display = 'flex';
+      if (m.action === 'hide') document.body.style.display = 'none';
+      if (m.action === 'refreshData') nui('getData');
+      if (m.action === 'setData') {
+        const d = m.data;
+
+        // Dashboard
+        document.getElementById('balance').innerText = `$${d.bank.toFixed(2)}`;
+        document.getElementById('cash-amt').innerText = `$${d.cash.toFixed(2)}`;
+        document.getElementById('bank-amt').innerText = `$${d.bank.toFixed(2)}`;
+        document.getElementById('dept-pay').innerText = `$${d.department_paycheck.toFixed(2)}`;
+
+        // Card preview
+        const fullName = [d.profile.firstname, d.profile.lastname].filter(Boolean).join(' ') || 'CARDHOLDER';
+        document.getElementById('card-name').innerText = fullName;
+        document.getElementById('card-number').innerText = d.card_number
+          ? `•••• •••• •••• ${d.card_number.slice(-4)}`
+          : '•••• •••• •••• 0000';
+        document.getElementById('card-exp').innerText = (d.exp_month && d.exp_year)
+          ? `${String(d.exp_month).padStart(2,'0')}/${String(d.exp_year).slice(-2)}` : '';
+
+        // Accounts
+        const accDiv = document.getElementById('accountsList');
+        accDiv.innerHTML = '';
+        d.accounts.forEach(a => {
+          const p = document.createElement('p');
+          p.className = 'text-gray-200';
+          if (a.type === 'savings') {
+            p.innerHTML = `#${a.id} (Savings): $${parseFloat(a.balance).toFixed(2)}<br>
+              <small>APR: ${(a.apr*100).toFixed(2)}%, Daily Interest: $${a.daily_interest.toFixed(2)}</small>`;
+          } else {
+            p.textContent = `#${a.id} (Checking): $${parseFloat(a.balance).toFixed(2)}`;
+          }
+          accDiv.appendChild(p);
+        });
+
+        // Payments
+        const payDiv = document.getElementById('paymentsList');
+        payDiv.innerHTML = '';
+        if (d.payments.length) {
+          d.payments.forEach(pm => {
+            const p = document.createElement('p');
+            p.className = 'text-gray-200';
+            p.innerHTML = `To <strong>${pm.payee}</strong>: $${parseFloat(pm.amount).toFixed(2)} on ${new Date(pm.schedule_date).toLocaleString()}`;
+            payDiv.appendChild(p);
+          });
+        } else {
+          payDiv.textContent = 'No upcoming payments.';
+          payDiv.className = 'text-gray-400';
+        }
+
+        // Cards
+        const cardsDiv = document.getElementById('cardsList');
+        cardsDiv.innerHTML = '';
+        d.cards.forEach(c => {
+          const p = document.createElement('p');
+          p.className = 'text-gray-200';
+          p.textContent = `•••• •••• •••• ${c.card_number.slice(-4)} — ${String(c.exp_month).padStart(2,'0')}/${String(c.exp_year).slice(-2)} (${c.status})`;
+          cardsDiv.appendChild(p);
+        });
+
+        // Profile
+        const picUrl = d.profile.profile_picture
+          || `https://api.dicebear.com/6.x/identicon/svg?seed=${encodeURIComponent(fullName)}`;
+        document.getElementById('profilePicPreview').src = picUrl;
+        document.getElementById('profilePicInput').value = d.profile.profile_picture;
+        document.getElementById('firstNameInput').value  = d.profile.firstname;
+        document.getElementById('lastNameInput').value   = d.profile.lastname;
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      AOS.init({ duration: 800, once: true, offset: 50 });
+      document.querySelectorAll('.nav-item').forEach(li => li.onclick = () => showPage(li.dataset.page));
+
+      // Internal transfer
+      document.getElementById('btnTransferInternal').onclick = () => {
+        const sound = document.getElementById('transferSound');
+        sound.currentTime = 0; // rewind if already playing
+        sound.play().catch(e => console.error("Playback failed:", e));
+        nui('transferInternal', {
+          from:   document.getElementById('transferFrom').value,
+          to:     document.getElementById('transferTo').value,
+          amount: document.getElementById('transferAmt').value
+        });
+      };
+
+      document.getElementById('btnClose').onclick = () => { document.body.style.display = 'none'; nui('close'); };
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') { document.body.style.display = 'none'; nui('close'); } });
+    });
+  </script>
+</body>
+</html>
