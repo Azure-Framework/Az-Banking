@@ -1,3 +1,5 @@
+<!-- index.htm -->
+
 <!DOCTYPE html>
 <html lang="en" class="dark scroll-smooth">
 <head>
@@ -15,13 +17,13 @@
         extend: {
           colors: {
             'bank-primary': '#141414',
-            'bank-accent': '#007FFF',    /* Azure blue accent */
+            'bank-accent': '#007FFF',
             'bank-secondary': '#121212',
             'bank-success': '#27AE60',
             'bank-error': '#E74C3C'
           },
           boxShadow: {
-            'azure-glow': '0 0 25px -5px rgba(0,127,255,0.2)'  /* Azure glow */
+            'azure-glow': '0 0 25px -5px rgba(0,127,255,0.2)'
           }
         }
       }
@@ -33,12 +35,12 @@
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-track { background: #121212; }
     ::-webkit-scrollbar-thumb {
-      background-color: #007FFF;     /* Azure */
+      background-color: #007FFF;
       border-radius: 4px;
       box-shadow: 0 0 6px rgba(0,127,255,0.5);
     }
     ::-webkit-scrollbar-thumb:hover {
-      background-color: #339CFF;     /* Lighter azure */
+      background-color: #339CFF;
       box-shadow: 0 0 8px rgba(51,156,255,0.7);
     }
   </style>
@@ -48,6 +50,9 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" rel="stylesheet">
 </head>
 <body class="flex items-center justify-center bg-transparent h-screen overflow-hidden" style="display:none;">
+
+  <!-- Error Message Container -->
+  <div id="errorMsg" class="absolute top-4 bg-bank-error text-white px-4 py-2 rounded-lg hidden"></div>
 
   <div id="uiWindow" class="w-[1000px] h-[800px] flex bg-[#121212] rounded-xl shadow-xl overflow-hidden border border-[#2a2a2a]">
     <!-- Sidebar -->
@@ -135,8 +140,7 @@
           <div class="max-w-md mx-auto space-y-4">
             <div>
               <label class="block text-gray-300 mb-1" for="transferFrom">From</label>
-              <select id="transferFrom"
-                      class="w-full px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200">
+              <select id="transferFrom" class="w-full px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200">
                 <option value="cash">Cash</option>
                 <option value="checking">Checking</option>
                 <option value="savings">Savings</option>
@@ -144,8 +148,7 @@
             </div>
             <div>
               <label class="block text-gray-300 mb-1" for="transferTo">To</label>
-              <select id="transferTo"
-                      class="w-full px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200">
+              <select id="transferTo" class="w-full px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200">
                 <option value="checking">Checking</option>
                 <option value="savings">Savings</option>
                 <option value="cash">Cash</option>
@@ -153,13 +156,9 @@
             </div>
             <div>
               <label class="block text-gray-300 mb-1" for="transferAmt">Amount</label>
-              <input id="transferAmt" type="number" min="0" placeholder="0.00"
-                     class="w-full px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
+              <input id="transferAmt" type="number" min="0" placeholder="0.00" class="w-full px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
             </div>
-            <button id="btnTransferInternal"
-                    class="w-full py-2 bg-bank-accent hover:bg-[#339CFF] text-black font-semibold rounded-lg">
-              Transfer
-            </button>
+            <button id="btnTransferInternal" class="w-full py-2 bg-bank-accent hover:bg-[#339CFF] text-black font-semibold rounded-lg">Transfer</button>
           </div>
         </section>
 
@@ -169,20 +168,13 @@
           <div id="paymentsList" class="space-y-4 mb-6"></div>
           <div class="p-6 bg-[#141414] rounded-2xl border border-[#2a2a2a] max-w-md mx-auto">
             <h4 class="text-lg font-semibold text-gray-200 mb-4">Schedule Payment</h4>
-            <input id="paymentPayee" type="text" placeholder="Payee Name"
-                   class="w-full mb-2 px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
-            <input id="paymentAmt" type="number" placeholder="Amount"
-                   class="w-full mb-2 px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
+            <input id="paymentPayee" type="text" placeholder="Payee Name" class="w-full mb-2 px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
+            <input id="paymentAmt" type="number" placeholder="Amount" class="w-full mb-2 px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
             <div class="flex gap-2 mb-4">
-              <input id="paymentDate" type="date"
-                     class="w-1/2 px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
-              <input id="paymentTime" type="time"
-                     class="w-1/2 px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
+              <input id="paymentDate" type="date" class="w-1/2 px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
+              <input id="paymentTime" type="time" class="w-1/2 px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
             </div>
-            <button id="btnAddPayment"
-                    class="w-full py-2 bg-bank-accent hover:bg-[#339CFF] text-black font-semibold rounded-lg">
-              Add Payment
-            </button>
+            <button id="btnAddPayment" class="w-full py-2 bg-bank-accent hover:bg-[#339CFF] text-black font-semibold rounded-lg">Add Payment</button>
           </div>
         </section>
 
@@ -195,23 +187,12 @@
         <!-- Profile -->
         <section id="profile" class="page hidden">
           <h3 class="text-xl font-bold text-gray-100 mb-6">Profile</h3>
-          <form id="profileForm"
-                class="max-w-md mx-auto p-6 bg-[#141414] rounded-2xl border border-[#2a2a2a] space-y-4">
+          <form id="profileForm" class="max-w-md mx-auto p-6 bg-[#141414] rounded-2xl border border-[#2a2a2a] space-y-4">
             <div class="flex justify-center">
-              <img id="profilePicPreview"
-                   class="w-24 h-24 rounded-full border-4 border-bank-accent"
-                   src="" alt="Profile Picture"/>
+              <img id="profilePicPreview" class="w-24 h-24 rounded-full border-4 border-bank-accent" src="" alt="Profile Picture"/>
             </div>
-            <input id="profilePicInput" type="url" placeholder="Profile Picture URL"
-                   class="w-full px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
-            <input id="firstNameInput" type="text" placeholder="First Name"
-                   class="w-full px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
-            <input id="lastNameInput" type="text" placeholder="Last Name"
-                   class="w-full px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
-            <button id="btnSaveProfile" type="button"
-                    class="w-full py-2 bg-bank-accent hover:bg-[#339CFF] text-black font-semibold rounded-lg">
-              Save Profile
-            </button>
+            <input id="profilePicInput" type="url" placeholder="Profile Picture URL" class="w-full px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
+            <button id="btnSaveProfile" type="button" class="w-full py-2 bg-bank-accent hover:bg-[#339CFF] text-black font-semibold rounded-lg">Save Profile Picture</button>
           </form>
         </section>
       </div>
@@ -242,17 +223,27 @@
       if (m.action === 'hide') document.body.style.display = 'none';
       if (m.action === 'refreshData') nui('getData');
       if (m.action === 'setData') {
+        // Error handling
+        const errEl = document.getElementById('errorMsg');
+        if (m.data.transferError) {
+          errEl.innerText = m.data.transferError;
+          errEl.classList.remove('hidden');
+          setTimeout(() => errEl.classList.add('hidden'), 4000);
+        } else {
+          errEl.classList.add('hidden');
+        }
+
         const d = m.data;
 
         // Dashboard
         document.getElementById('balance').innerText = `$${d.bank.toFixed(2)}`;
+
+        // Funds Overview
         document.getElementById('cash-amt').innerText = `$${d.cash.toFixed(2)}`;
         document.getElementById('bank-amt').innerText = `$${d.bank.toFixed(2)}`;
         document.getElementById('dept-pay').innerText = `$${d.department_paycheck.toFixed(2)}`;
 
-        // Card preview
-        const fullName = [d.profile.firstname, d.profile.lastname].filter(Boolean).join(' ') || 'CARDHOLDER';
-        document.getElementById('card-name').innerText = fullName;
+        // Card Preview
         document.getElementById('card-number').innerText = d.card_number
           ? `•••• •••• •••• ${d.card_number.slice(-4)}`
           : '•••• •••• •••• 0000';
@@ -260,11 +251,9 @@
           ? `${String(d.exp_month).padStart(2,'0')}/${String(d.exp_year).slice(-2)}` : '';
 
         // Accounts
-        const accDiv = document.getElementById('accountsList');
-        accDiv.innerHTML = '';
+        const accDiv = document.getElementById('accountsList'); accDiv.innerHTML = '';
         d.accounts.forEach(a => {
-          const p = document.createElement('p');
-          p.className = 'text-gray-200';
+          const p = document.createElement('p'); p.className = 'text-gray-200';
           if (a.type === 'savings') {
             p.innerHTML = `#${a.id} (Savings): $${parseFloat(a.balance).toFixed(2)}<br>
               <small>APR: ${(a.apr*100).toFixed(2)}%, Daily Interest: $${a.daily_interest.toFixed(2)}</small>`;
@@ -275,37 +264,29 @@
         });
 
         // Payments
-        const payDiv = document.getElementById('paymentsList');
-        payDiv.innerHTML = '';
+        const payDiv = document.getElementById('paymentsList'); payDiv.innerHTML = '';
         if (d.payments.length) {
           d.payments.forEach(pm => {
-            const p = document.createElement('p');
-            p.className = 'text-gray-200';
+            const p = document.createElement('p'); p.className = 'text-gray-200';
             p.innerHTML = `To <strong>${pm.payee}</strong>: $${parseFloat(pm.amount).toFixed(2)} on ${new Date(pm.schedule_date).toLocaleString()}`;
             payDiv.appendChild(p);
           });
         } else {
-          payDiv.textContent = 'No upcoming payments.';
-          payDiv.className = 'text-gray-400';
+          payDiv.textContent = 'No upcoming payments.'; payDiv.className = 'text-gray-400';
         }
 
         // Cards
-        const cardsDiv = document.getElementById('cardsList');
-        cardsDiv.innerHTML = '';
+        const cardsDiv = document.getElementById('cardsList'); cardsDiv.innerHTML = '';
         d.cards.forEach(c => {
-          const p = document.createElement('p');
-          p.className = 'text-gray-200';
+          const p = document.createElement('p'); p.className = 'text-gray-200';
           p.textContent = `•••• •••• •••• ${c.card_number.slice(-4)} — ${String(c.exp_month).padStart(2,'0')}/${String(c.exp_year).slice(-2)} (${c.status})`;
           cardsDiv.appendChild(p);
         });
 
         // Profile
-        const picUrl = d.profile.profile_picture
-          || `https://api.dicebear.com/6.x/identicon/svg?seed=${encodeURIComponent(fullName)}`;
+        const picUrl = d.profile_picture || `https://api.dicebear.com/6.x/identicon/svg?seed=AzureBank`;
         document.getElementById('profilePicPreview').src = picUrl;
-        document.getElementById('profilePicInput').value = d.profile.profile_picture;
-        document.getElementById('firstNameInput').value  = d.profile.firstname;
-        document.getElementById('lastNameInput').value   = d.profile.lastname;
+        document.getElementById('profilePicInput').value = d.profile_picture || '';
       }
     });
 
@@ -313,10 +294,9 @@
       AOS.init({ duration: 800, once: true, offset: 50 });
       document.querySelectorAll('.nav-item').forEach(li => li.onclick = () => showPage(li.dataset.page));
 
-      // Internal transfer
       document.getElementById('btnTransferInternal').onclick = () => {
         const sound = document.getElementById('transferSound');
-        sound.currentTime = 0; // rewind if already playing
+        sound.currentTime = 0;
         sound.play().catch(e => console.error("Playback failed:", e));
         nui('transferInternal', {
           from:   document.getElementById('transferFrom').value,
@@ -325,8 +305,20 @@
         });
       };
 
-      document.getElementById('btnClose').onclick = () => { document.body.style.display = 'none'; nui('close'); };
-      document.addEventListener('keydown', e => { if (e.key === 'Escape') { document.body.style.display = 'none'; nui('close'); } });
+      document.getElementById('btnSaveProfile').onclick = () => {
+        nui('updateProfile', { profile_picture: document.getElementById('profilePicInput').value });
+      };
+
+      document.getElementById('btnClose').onclick = () => {
+        document.body.style.display = 'none';
+        nui('close');
+      };
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+          document.body.style.display = 'none';
+          nui('close');
+        }
+      });
     });
   </script>
 </body>
