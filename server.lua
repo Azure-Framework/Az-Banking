@@ -1,5 +1,3 @@
--- server.lua
-
 local M = {
   money = 'econ_user_money',
   accts = 'econ_accounts',
@@ -18,14 +16,16 @@ AddEventHandler('onResourceStart', function(resourceName)
   -- USER MONEY
   exports.oxmysql:execute(string.format([[
     CREATE TABLE IF NOT EXISTS `%s` (
-      `discordid`     VARCHAR(32) NOT NULL PRIMARY KEY,
-      `cash`          BIGINT      NOT NULL DEFAULT 0,
-      `bank`          BIGINT      NOT NULL DEFAULT 0,
+      `discordid`      VARCHAR(32) NOT NULL,
+      `charid`         VARCHAR(100) NOT NULL,
+      `cash`           BIGINT      NOT NULL DEFAULT 0,
+      `bank`           BIGINT      NOT NULL DEFAULT 0,
       `profile_picture` VARCHAR(255) DEFAULT '',
-      `card_number`   VARCHAR(16) DEFAULT '',
-      `exp_month`     INT         DEFAULT 0,
-      `exp_year`      INT         DEFAULT 0,
-      `card_status`   VARCHAR(16) DEFAULT ''
+      `card_number`    VARCHAR(16) DEFAULT '',
+      `exp_month`      INT         DEFAULT 0,
+      `exp_year`       INT         DEFAULT 0,
+      `card_status`    VARCHAR(16) DEFAULT '',
+      PRIMARY KEY (`discordid`,`charid`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;]]
     , M.money))
 
@@ -85,18 +85,26 @@ local function getDiscordID(src)
   end
 end
 
--- Fetch or create user_money row
-local function fetchMoney(did, cb)
+-- Helper: get the player's character ID (must never return empty)
+local function getCharID(src)
+  -- pulls character ID from Az-Framework’s export
+  local cid = exports['Az-Framework']:GetPlayerCharacter(src)
+  return cid and tostring(cid) or ''
+end
+
+-- Fetch or create user_money row for a given discordid+charid
+local function fetchMoney(did, cid, cb)
   exports.oxmysql:query(
-    string.format("SELECT * FROM `%s` WHERE discordid = ?", M.money),
-    { did },
+    string.format("SELECT * FROM `%s` WHERE discordid = ? AND charid = ?", M.money),
+    { did, cid },
     function(res)
-      if res[1] then cb(res[1])
+      if res[1] then
+        cb(res[1])
       else
         exports.oxmysql:insert(
-          string.format("INSERT INTO `%s` (discordid,cash,bank,profile_picture) VALUES (?,?,?, '')", M.money),
-          { did, 0, 0 },
-          function() fetchMoney(did, cb) end
+          string.format("INSERT INTO `%s` (discordid,charid,cash,bank,profile_picture) VALUES (?,?,?,?, '')", M.money),
+          { did, cid, 0, 0 },
+          function() fetchMoney(did, cid, cb) end
         )
       end
     end
@@ -201,9 +209,11 @@ end
 local function pushData(src, errMsg)
   local did = getDiscordID(src)
   if not did then return end
+  local cid = getCharID(src)
+  if cid == '' then return end
 
   fetchCards(did, function()
-    fetchMoney(did, function(m)
+    fetchMoney(did, cid, function(m)
       fetchAccounts(did, function(accts)
         local checking = 0
         for _, acct in ipairs(accts) do
@@ -250,12 +260,14 @@ local function pushData(src, errMsg)
   end)
 end
 
--- Auto‑create on player connect
+-- Auto-create on player connect
 AddEventHandler('playerConnecting', function(name, setKick, def)
   local src = source
   local did = getDiscordID(src)
   if not did then return end
-  fetchMoney(did, function() end)
+  local cid = getCharID(src)
+  if cid == '' then return end
+  fetchMoney(did, cid, function() end)
   fetchAccounts(did, function() end)
   fetchCards(did, function() end)
   fetchDepartment(did, function() end)
@@ -265,11 +277,12 @@ end)
 RegisterServerEvent('my-bank-ui:getData', function() pushData(source) end)
 RegisterServerEvent('my-bank-ui:deposit', function(data)
   local src, did = source, getDiscordID(source)
+  local cid = getCharID(src)
   local amt = tonumber(data.amount) or 0
-  if amt > 0 and did then
+  if amt > 0 and did and cid ~= '' then
     exports.oxmysql:execute(
-      string.format("UPDATE `%s` SET cash = GREATEST(cash - ?,0) WHERE discordid = ?", M.money),
-      { amt, did }
+      string.format("UPDATE `%s` SET cash = GREATEST(cash - ?,0) WHERE discordid = ? AND charid = ?", M.money),
+      { amt, did, cid }
     )
     exports.oxmysql:execute(
       string.format("UPDATE `%s` SET balance = balance + ? WHERE discordid = ? AND type = 'checking'", M.accts),
@@ -280,38 +293,40 @@ RegisterServerEvent('my-bank-ui:deposit', function(data)
 end)
 RegisterServerEvent('my-bank-ui:withdraw', function(data)
   local src, did = source, getDiscordID(source)
+  local cid = getCharID(src)
   local amt = tonumber(data.amount) or 0
-  if amt > 0 and did then
+  if amt > 0 and did and cid ~= '' then
     exports.oxmysql:execute(
       string.format("UPDATE `%s` SET balance = GREATEST(balance - ?,0) WHERE discordid = ? AND type = 'checking'", M.accts),
       { amt, did }
     )
     exports.oxmysql:execute(
-      string.format("UPDATE `%s` SET cash = cash + ? WHERE discordid = ?", M.money),
-      { amt, did }
+      string.format("UPDATE `%s` SET cash = cash + ? WHERE discordid = ? AND charid = ?", M.money),
+      { amt, did, cid }
     )
   end
   pushData(src)
 end)
 RegisterServerEvent('my-bank-ui:transfer', function(data)
   local src, did = source, getDiscordID(source)
+  local cid = getCharID(src)
   local tgt, amt = tostring(data.target), tonumber(data.amount) or 0
-  if amt <= 0 or not did or not tgt then return pushData(src,"Invalid transfer parameters.") end
+  if amt <= 0 or not did or cid == '' or not tgt then return pushData(src,"Invalid transfer parameters.") end
 
   exports.oxmysql:query(
-    string.format("SELECT cash FROM `%s` WHERE discordid = ?", M.money),
-    { did },
+    string.format("SELECT cash FROM `%s` WHERE discordid = ? AND charid = ?", M.money),
+    { did, cid },
     function(res)
       local cash = res[1] and tonumber(res[1].cash) or 0
       if cash < amt then return pushData(src,"Not enough cash to transfer.") end
 
       exports.oxmysql:execute(
-        string.format("UPDATE `%s` SET cash = cash - ? WHERE discordid = ?", M.money),
-        { amt, did },
+        string.format("UPDATE `%s` SET cash = cash - ? WHERE discordid = ? AND charid = ?", M.money),
+        { amt, did, cid },
         function()
           exports.oxmysql:execute(
-            string.format("UPDATE `%s` SET cash = cash + ? WHERE discordid = ?", M.money),
-            { amt, tgt },
+            string.format("UPDATE `%s` SET cash = cash + ? WHERE discordid = ? AND charid = ?", M.money),
+            { amt, tgt, cid },
             function() pushData(src) end
           )
         end
@@ -319,12 +334,14 @@ RegisterServerEvent('my-bank-ui:transfer', function(data)
     end
   )
 end)
+
 RegisterServerEvent('my-bank-ui:addPayment', function(data)
   local src, did = source, getDiscordID(source)
+  local cid = getCharID(src)
   local payee = tostring(data.payee or "")
   local amt   = tonumber(data.amount) or 0
-  local dt    = (data.schedule_date or "").." "..(data.schedule_time or "00:00:00")
-  if payee ~= "" and amt > 0 and data.schedule_date ~= "" then
+  local dt    = (data.schedule_date or "") .. " " .. (data.schedule_time or "00:00:00")
+  if payee ~= "" and amt > 0 and data.schedule_date ~= "" and did and cid ~= '' then
     exports.oxmysql:insert(
       string.format("INSERT INTO `%s` (discordid,payee,amount,schedule_date) VALUES (?,?,?,?)", M.pays),
       { did, payee, amt, dt },
@@ -334,40 +351,52 @@ RegisterServerEvent('my-bank-ui:addPayment', function(data)
     pushData(src)
   end
 end)
+
 RegisterServerEvent('my-bank-ui:transferInternal', function(data)
   local src, did = source, getDiscordID(source)
+  local cid = getCharID(src)
   local from, to = data.from, data.to
   local amt      = tonumber(data.amount) or 0
-  if amt <= 0 or from == to or not did then return pushData(src,"Invalid internal transfer.") end
+  if amt <= 0 or from == to or not did or cid == '' then return pushData(src,"Invalid internal transfer.") end
 
-  fetchMoney(did, function(m)
+  fetchMoney(did, cid, function(m)
     fetchAccounts(did, function(accts)
-      local bal = (from=='cash') and tonumber(m.cash) or (function()
-        for _, a in ipairs(accts) do if a.type==from then return tonumber(a.balance) end end
+      local bal = (from == 'cash') and tonumber(m.cash) or (function()
+        for _, a in ipairs(accts) do if a.type == from then return tonumber(a.balance) end end
         return 0
       end)()
-      if bal < amt then return pushData(src,"Insufficient funds in "..from) end
+      if bal < amt then return pushData(src,"Insufficient funds in " .. from) end
 
       local Q = {}
-      if from=='cash' then
-        table.insert(Q,{ sql=string.format("UPDATE `%s` SET cash=cash-? WHERE discordid=?",M.money),
-                         params={amt,did} })
+      if from == 'cash' then
+        table.insert(Q, {
+          sql    = string.format("UPDATE `%s` SET cash = cash - ? WHERE discordid = ? AND charid = ?", M.money),
+          params = { amt, did, cid }
+        })
       else
-        table.insert(Q,{ sql=string.format("UPDATE `%s` SET balance=balance-? WHERE discordid=? AND type=?",M.accts),
-                         params={amt,did,from} })
+        table.insert(Q, {
+          sql    = string.format("UPDATE `%s` SET balance = balance - ? WHERE discordid = ? AND type = ?", M.accts),
+          params = { amt, did, from }
+        })
       end
-      if to=='cash' then
-        table.insert(Q,{ sql=string.format("UPDATE `%s` SET cash=cash+? WHERE discordid=?",M.money),
-                         params={amt,did} })
+
+      if to == 'cash' then
+        table.insert(Q, {
+          sql    = string.format("UPDATE `%s` SET cash = cash + ? WHERE discordid = ? AND charid = ?", M.money),
+          params = { amt, did, cid }
+        })
       else
-        table.insert(Q,{ sql=string.format("UPDATE `%s` SET balance=balance+? WHERE discordid=? AND type=?",M.accts),
-                         params={amt,did,to} })
+        table.insert(Q, {
+          sql    = string.format("UPDATE `%s` SET balance = balance + ? WHERE discordid = ? AND type = ?", M.accts),
+          params = { amt, did, to }
+        })
       end
 
       local function exec(i)
-        if i>#Q then return pushData(src) end
-        exports.oxmysql:execute(Q[i].sql, Q[i].params, function() exec(i+1) end)
+        if i > #Q then return pushData(src) end
+        exports.oxmysql:execute(Q[i].sql, Q[i].params, function() exec(i + 1) end)
       end
+
       exec(1)
     end)
   end)
