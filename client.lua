@@ -119,3 +119,183 @@ Citizen.CreateThread(function()
     end
   end
 end)
+
+
+
+
+-- client.lua
+
+-- Toggle and effect state
+local underglowOn = false
+local effectThread = nil
+
+-- Neon light indexes: left, right, front, back
+local neonIndexes = {0, 1, 2, 3}
+
+-- Normalize raw color strings to six-digit hex (no prefix)
+local function normalizeHex(raw)
+    local clean = raw:gsub('[^%x]', '')
+    if #clean == 3 then
+        clean = clean:sub(1,1):rep(2)
+               .. clean:sub(2,2):rep(2)
+               .. clean:sub(3,3):rep(2)
+    end
+    if #clean > 6 then
+        clean = clean:sub(1, 6)
+    elseif #clean < 6 then
+        clean = string.rep('0', 6 - #clean) .. clean
+    end
+    return clean
+end
+
+-- Convert HSV (0–360, 0–1, 0–1) to RGB (0–1)
+local function hsvToRgb(h, s, v)
+    local c = v * s
+    local x = c * (1 - math.abs((h / 60) % 2 - 1))
+    local m = v - c
+    local r1, g1, b1
+    if h < 60 then r1, g1, b1 = c, x, 0
+    elseif h < 120 then r1, g1, b1 = x, c, 0
+    elseif h < 180 then r1, g1, b1 = 0, c, x
+    elseif h < 240 then r1, g1, b1 = 0, x, c
+    elseif h < 300 then r1, g1, b1 = x, 0, c
+    else r1, g1, b1 = c, 0, x end
+    return r1 + m, g1 + m, b1 + m
+end
+
+-- Apply neon lights on all sides with given RGB and enabled state
+local function applyNeon(vehicle, r, g, b, enabled, indexes)
+    indexes = indexes or neonIndexes
+    for _, idx in ipairs(indexes) do
+        SetVehicleNeonLightEnabled(vehicle, idx, enabled)
+    end
+    if enabled then
+        SetVehicleNeonLightsColour(vehicle, r, g, b)
+    end
+end
+
+-- Smooth RGB cycle effect (hue rotation)
+local function smoothCycle(vehicle, speed)
+    local hue = 0
+    while underglowOn do
+        local r1, g1, b1 = hsvToRgb(hue % 360, 1, 1)
+        applyNeon(vehicle,
+            math.floor(r1 * 255),
+            math.floor(g1 * 255),
+            math.floor(b1 * 255),
+            true
+        )
+        hue = hue + speed
+        Wait(50)
+    end
+end
+
+-- Strobe (blink) effect
+local function strobeEffect(vehicle, r, g, b, interval)
+    while underglowOn do
+        applyNeon(vehicle, r, g, b, true)
+        Wait(interval)
+        applyNeon(vehicle, r, g, b, false)
+        Wait(interval)
+    end
+end
+
+-- Police pattern: red & blue alternating
+local function policeEffect(vehicle, interval)
+    local red = {255,1,1}
+    local blue = {3,83,255}
+    local toggle = true
+    while underglowOn do
+        if toggle then
+            applyNeon(vehicle, red[1], red[2], red[3], true, {0,3}) -- left/back red
+            applyNeon(vehicle, blue[1], blue[2], blue[3], true, {1,2}) -- right/front blue
+        else
+            applyNeon(vehicle, blue[1], blue[2], blue[3], true, {0,3})
+            applyNeon(vehicle, red[1], red[2], red[3], true, {1,2})
+        end
+        toggle = not toggle
+        Wait(interval)
+    end
+end
+
+-- Circular chase effect
+local function circleEffect(vehicle, r, g, b, interval)
+    local count = #neonIndexes
+    local idx = 1
+    while underglowOn do
+        -- clear all
+        applyNeon(vehicle, r, g, b, false)
+        -- light current
+        applyNeon(vehicle, r, g, b, true, {neonIndexes[idx]})
+        idx = idx % count + 1
+        Wait(interval)
+    end
+end
+
+-- Open the underglow settings menu
+local function openUnderglowMenu()
+    local input = lib.inputDialog('Underglow Settings', {
+        { type = 'color',  label = 'Choose Color', default = '#ff0000', format = 'hex' },
+        { type = 'select', label = 'Effect', options = {
+            { value = 'static', label = 'Static' },
+            { value = 'smooth', label = 'RGB Smooth' },
+            { value = 'strobe', label = 'Strobe' },
+            { value = 'police', label = 'Police Red/Blue' },
+            { value = 'circle', label = 'Circle Chase' }
+        }, default = 'static' },
+        { type = 'number', label = 'Speed (1-100)', default = 50, min = 1, max = 100, step = 1 }
+    }, { allowCancel = true })
+
+    if not input then return end
+
+    local rawHex = input[1]
+    local cleanHex = normalizeHex(rawHex)
+    local r = tonumber(cleanHex:sub(1,2), 16) or 0
+    local g = tonumber(cleanHex:sub(3,4), 16) or 0
+    local b = tonumber(cleanHex:sub(5,6), 16) or 0
+
+    local effect = input[2]
+    local speed  = input[3]
+    local interval = math.floor(1000 / speed)
+
+    local ped = PlayerPedId()
+    local veh = GetVehiclePedIsIn(ped, false)
+    if veh == 0 then
+        return lib.notify({ title = 'No Vehicle', description = 'You must be in a vehicle to toggle underglow.', type = 'error', position = 'top' })
+    end
+
+    if underglowOn then
+        underglowOn = false
+        if effectThread then effectThread = nil end
+        applyNeon(veh, 0, 0, 0, false)
+        return lib.notify({ title = 'Underglow Disabled', type = 'inform' })
+    end
+
+    underglowOn = true
+    applyNeon(veh, r, g, b, true)
+
+    -- Start chosen effect
+    if effect == 'smooth' then
+        effectThread = CreateThread(function() smoothCycle(veh, speed / 2) end)
+    elseif effect == 'strobe' then
+        effectThread = CreateThread(function() strobeEffect(veh, r, g, b, interval) end)
+    elseif effect == 'police' then
+        effectThread = CreateThread(function() policeEffect(veh, interval) end)
+    elseif effect == 'circle' then
+        effectThread = CreateThread(function() circleEffect(veh, r, g, b, interval) end)
+    end
+
+    lib.notify({ title = 'Underglow Enabled', description = ('%s @ %d'):format(effect, speed), type = 'success' })
+end
+
+-- Register the /underglow command
+RegisterCommand('underglow', function() openUnderglowMenu() end, false)
+
+-- Cleanup neon on resource stop
+AddEventHandler('onClientResourceStop', function(resName)
+    if resName == GetCurrentResourceName() then
+        local ped = PlayerPedId()
+        local veh = GetVehiclePedIsIn(ped, false)
+        if veh ~= 0 then applyNeon(veh, 0, 0, 0, false) end
+    end
+end)
