@@ -6,27 +6,28 @@ local M = {
   dept  = 'econ_departments'
 }
 local SAVINGS_APR = 0.05
+-- how long (seconds) police blip should stay on map
+local DISPATCH_BLIP_SECONDS = 20
+-- Toggle verbose dispatch/debug prints
+local DEBUG_DISPATCH = true
 
-
+-- Helper: get Discord ID from identifiers (kept for traceability)
 local function getDiscordID(src)
   for _, id in ipairs(GetPlayerIdentifiers(src)) do
     if id:sub(1,8) == 'discord:' then
       return id:sub(9)
     end
   end
-  
   local ids = GetPlayerIdentifiers(src)
   return ids and ids[1] or ''
 end
 
-
+-- Helper: get the player's character ID (must never return empty)
 local function getCharID(src)
   local cid = nil
-  
   if exports['Az-Framework'] and exports['Az-Framework'].GetPlayerCharacter then
     cid = exports['Az-Framework']:GetPlayerCharacter(src)
   end
-  
   if not cid or cid == '' then
     for _, id in ipairs(GetPlayerIdentifiers(src)) do
       if id and id:match('^%d+$') then
@@ -38,11 +39,10 @@ local function getCharID(src)
   return cid and tostring(cid) or ''
 end
 
-
+-- Ensure tables exist (non-destructive)
 AddEventHandler('onResourceStart', function(resourceName)
   if GetCurrentResourceName() ~= resourceName then return end
 
-  
   exports.oxmysql:execute(string.format([[
     CREATE TABLE IF NOT EXISTS `%s` (
       `discordid` varchar(64) DEFAULT '',
@@ -61,7 +61,6 @@ AddEventHandler('onResourceStart', function(resourceName)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;]]
     , M.money))
 
-  
   exports.oxmysql:execute(string.format([[
     CREATE TABLE IF NOT EXISTS `%s` (
       `id` INT AUTO_INCREMENT PRIMARY KEY,
@@ -73,7 +72,6 @@ AddEventHandler('onResourceStart', function(resourceName)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;]]
     , M.accts))
 
-  
   exports.oxmysql:execute(string.format([[
     CREATE TABLE IF NOT EXISTS `%s` (
       `id` INT AUTO_INCREMENT PRIMARY KEY,
@@ -86,7 +84,6 @@ AddEventHandler('onResourceStart', function(resourceName)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;]]
     , M.pays))
 
-  
   exports.oxmysql:execute(string.format([[
     CREATE TABLE IF NOT EXISTS `%s` (
       `id` INT AUTO_INCREMENT PRIMARY KEY,
@@ -100,7 +97,6 @@ AddEventHandler('onResourceStart', function(resourceName)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;]]
     , M.cards))
 
-  
   exports.oxmysql:execute(string.format([[
     CREATE TABLE IF NOT EXISTS `%s` (
       `discordid` VARCHAR(64) DEFAULT '',
@@ -113,7 +109,7 @@ AddEventHandler('onResourceStart', function(resourceName)
   print("^2[econ]^0 Tables ensured (discordid+charid aware).")
 end)
 
-
+-- Fetch / create helpers (unchanged from previous)
 local function fetchMoney(did, cid, cb)
   if not cid or cid == '' then return cb(nil) end
   exports.oxmysql:query(
@@ -121,7 +117,6 @@ local function fetchMoney(did, cid, cb)
     { cid },
     function(res)
       if res and res[1] then
-        
         if did and did ~= '' and res[1].discordid ~= did then
           exports.oxmysql:execute(
             string.format("UPDATE `%s` SET discordid = ? WHERE charid = ?", M.money),
@@ -130,7 +125,6 @@ local function fetchMoney(did, cid, cb)
         end
         cb(res[1])
       else
-        
         exports.oxmysql:insert(
           string.format("INSERT INTO `%s` (discordid,charid,cash,bank,profile_picture,firstname,lastname,card_status) VALUES (?,?,?,?,?,?,?,?)", M.money),
           { did or '', cid, 0, 0, '', '', '', 'active' },
@@ -140,7 +134,6 @@ local function fetchMoney(did, cid, cb)
     end
   )
 end
-
 
 local function fetchAccounts(did, cid, cb)
   if not cid or cid == '' then return cb({}) end
@@ -155,7 +148,6 @@ local function fetchAccounts(did, cid, cb)
           function() fetchAccounts(did, cid, cb) end
         )
       else
-        
         for _, acct in ipairs(accts) do
           if (not acct.discordid or acct.discordid == '') and did and did ~= '' then
             exports.oxmysql:execute(
@@ -175,7 +167,6 @@ local function fetchAccounts(did, cid, cb)
   )
 end
 
-
 local function fetchCards(did, cid, cb)
   if not cid or cid == '' then return cb({}) end
   exports.oxmysql:query(
@@ -194,7 +185,6 @@ local function fetchCards(did, cid, cb)
           string.format("INSERT INTO `%s` (discordid,charid,card_number,exp_month,exp_year,status) VALUES (?,?,?,?,?,?)", M.cards),
           { did or '', cid, num, month, year, status },
           function()
-            
             exports.oxmysql:execute(
               string.format("UPDATE `%s` SET card_number=?,exp_month=?,exp_year=?,card_status=?,discordid=? WHERE charid=?", M.money),
               { num, month, year, status, did or '', cid },
@@ -204,7 +194,6 @@ local function fetchCards(did, cid, cb)
         )
       else
         local c = cards[1]
-        
         if (not c.discordid or c.discordid == '') and did and did ~= '' then
           exports.oxmysql:execute(
             string.format("UPDATE `%s` SET discordid = ? WHERE id = ?", M.cards),
@@ -225,7 +214,6 @@ local function fetchCards(did, cid, cb)
   )
 end
 
-
 local function fetchDepartment(did, cid, cb)
   if not cid or cid == '' then return cb() end
   exports.oxmysql:query(
@@ -239,7 +227,6 @@ local function fetchDepartment(did, cid, cb)
           function() cb() end
         )
       else
-        
         if did and did ~= '' and rows[1].discordid ~= did then
           exports.oxmysql:execute(
             string.format("UPDATE `%s` SET discordid = ? WHERE charid = ?", M.dept),
@@ -252,7 +239,7 @@ local function fetchDepartment(did, cid, cb)
   )
 end
 
-
+-- Push data to client
 local function pushData(src, errMsg)
   local did = getDiscordID(src)
   local cid = getCharID(src)
@@ -306,7 +293,7 @@ local function pushData(src, errMsg)
   end)
 end
 
-
+-- Ensure rows on connect (save discordid + charid)
 AddEventHandler('playerConnecting', function(name, setKick, def)
   local src = source
   local did = getDiscordID(src)
@@ -318,7 +305,7 @@ AddEventHandler('playerConnecting', function(name, setKick, def)
   fetchDepartment(did, cid, function() end)
 end)
 
-
+-- RPCs
 RegisterServerEvent('my-bank-ui:getData', function() pushData(source) end)
 
 RegisterServerEvent('my-bank-ui:deposit', function(data)
@@ -327,7 +314,6 @@ RegisterServerEvent('my-bank-ui:deposit', function(data)
   local cid = getCharID(src)
   local amt = tonumber(data.amount) or 0
   if amt > 0 and cid ~= '' then
-    
     exports.oxmysql:execute(
       string.format("UPDATE `%s` SET cash = GREATEST(cash - ?,0), discordid = ? WHERE charid = ?", M.money),
       { amt, did or '', cid }
@@ -359,7 +345,6 @@ RegisterServerEvent('my-bank-ui:withdraw', function(data)
 end)
 
 RegisterServerEvent('my-bank-ui:transfer', function(data)
-  
   local src = source
   local did = getDiscordID(src)
   local cid = getCharID(src)
@@ -374,12 +359,10 @@ RegisterServerEvent('my-bank-ui:transfer', function(data)
       local cash = res[1] and tonumber(res[1].cash) or 0
       if cash < amt then return pushData(src,"Not enough cash to transfer.") end
 
-      
       exports.oxmysql:execute(
         string.format("UPDATE `%s` SET cash = cash - ?, discordid = ? WHERE charid = ?", M.money),
         { amt, did or '', cid },
         function()
-          
           exports.oxmysql:query(
             string.format("SELECT charid FROM `%s` WHERE charid = ? LIMIT 1", M.money),
             { tgt },
@@ -478,3 +461,245 @@ RegisterServerEvent('my-bank-ui:transferInternal', function(data)
     end)
   end)
 end)
+
+----------------------------------------------------------------
+-- ATM Robbery
+----------------------------------------------------------------
+
+local ATMState = {} -- atmKey -> { closedUntil = timestamp, coords = {x,y,z} }
+
+local ATMConfig = {
+  cooldown = 600,
+  minReward = 500,
+  maxReward = 3000,
+  maxAllowedDistance = 5.0
+}
+
+-- Broadcast ATM state to clients: send remaining seconds (not unix timestamp)
+local function broadcastAtmState(atmKey, closedUntil)
+  local remaining = 0
+  if closedUntil and closedUntil > 0 then
+    remaining = math.max(0, closedUntil - os.time())
+  end
+  TriggerClientEvent('atm:closedStatus', -1, atmKey, remaining)
+end
+
+local POLICE_JOB_NAMES = Config.PoliceJobNames
+
+-- Normalize job value returned by Az-Framework
+local function normalizeJob(jobVal)
+  if not jobVal then return nil end
+  if type(jobVal) == 'table' then
+    if jobVal.name and type(jobVal.name) == 'string' then
+      return jobVal.name:lower()
+    elseif jobVal.job and type(jobVal.job) == 'string' then
+      return jobVal.job:lower()
+    elseif jobVal.department and type(jobVal.department) == 'string' then
+      return jobVal.department:lower()
+    else
+      -- last resort: try first string-ish field or tostring
+      for k,v in pairs(jobVal) do
+        if type(v) == 'string' then return v:lower() end
+      end
+      return tostring(jobVal)
+    end
+  end
+  if type(jobVal) == 'string' then return jobVal:lower() end
+  return tostring(jobVal)
+end
+-- notifyPolice: iterate players and notify those with a police job + verbose debug
+local function notifyPolice(payload)
+  TriggerEvent('dispatch:notifyPolice', payload) -- allow other server modules to hook
+
+  local players = GetPlayers()
+  local foundAny = false
+
+  if DEBUG_DISPATCH then
+    print(("[dispatch] notifyPolice called. payload.atmKey=%s coords=%s"):format(
+      tostring(payload.atmKey),
+      payload.coords and (("%0.2f,%0.2f,%0.2f"):format(payload.coords.x or 0, payload.coords.y or 0, payload.coords.z or 0)) or "nil"
+    ))
+  end
+
+  for _, pid in ipairs(players) do
+    local srvId = tonumber(pid)
+    if srvId then
+      -- call export defensively
+      local ok, jobVal = pcall(function()
+        if exports['Az-Framework'] and exports['Az-Framework'].getPlayerJob then
+          return exports['Az-Framework']:getPlayerJob(srvId)
+        elseif exports['Az-Framework'] and exports['Az-Framework'].GetPlayerJob then
+          return exports['Az-Framework']:GetPlayerJob(srvId)
+        end
+        return nil
+      end)
+
+      -- Prepare readable serialization of jobVal for debug
+      local serialized = nil
+      pcall(function() serialized = (type(jobVal) == 'table' and (json and json.encode and json.encode(jobVal) or tostring(jobVal)) or tostring(jobVal)) end)
+
+      if DEBUG_DISPATCH then
+        print(("[dispatch] pid=%s getPlayerJob ok=%s returnedType=%s returned=%s"):format(
+          tostring(srvId),
+          tostring(ok),
+          type(jobVal),
+          tostring(serialized)
+        ))
+      end
+
+      if ok and jobVal then
+        local jobName = normalizeJob(jobVal)
+        if jobName then
+          -- be defensive: normalize to string & lowercase for lookup
+          jobName = tostring(jobName):lower()
+        end
+
+        if DEBUG_DISPATCH then
+          print(("[dispatch] pid=%s normalized job => %s"):format(tostring(srvId), tostring(jobName)))
+        end
+
+        if jobName and POLICE_JOB_NAMES[jobName] then
+          foundAny = true
+          -- client notification: both a dispatch event and a chat message (fallback)
+          if DEBUG_DISPATCH then
+            print(("[dispatch] notifying pid=%s (job=%s)"):format(tostring(srvId), tostring(jobName)))
+          end
+          TriggerClientEvent('dispatch:atmRobbery', srvId, payload)
+          TriggerClientEvent('chat:addMessage', srvId, {
+            args = {
+              '^1[DISPATCH]',
+              ('^3ATM Robbery^7 — Location: (%.1f, %.1f, %.1f) — Reward: $%d')
+                :format((payload.coords and payload.coords.x) or 0, (payload.coords and payload.coords.y) or 0, (payload.coords and payload.coords.z) or 0, payload.reward or 0)
+            }
+          })
+        end
+      else
+        if DEBUG_DISPATCH then
+          print(("[dispatch] pid=%s getPlayerJob failed or nil (ok=%s)"):format(tostring(srvId), tostring(ok)))
+        end
+      end
+    end
+  end
+
+  if not foundAny and DEBUG_DISPATCH then
+    print("[dispatch] notifyPolice: no police players matched POLICE_JOB_NAMES (check job strings or returned job shape).")
+  end
+end
+
+-- Debug command to force a notify from console / player (for testing)
+RegisterCommand('atm_debug_notify', function(source, args, raw)
+  local src = source
+  local sender = (src == 0) and "console" or ("player:"..tostring(src))
+  print(("[dispatch] /atm_debug_notify called by %s"):format(sender))
+  local coords = { x = tonumber(args[1]) or 0, y = tonumber(args[2]) or 0, z = tonumber(args[3]) or 0 }
+  local payload = {
+    source = src,
+    atmKey = args[4] or "debug_atm",
+    coords = coords,
+    reward = 0,
+    closedUntil = os.time() + (tonumber(args[5]) or 60),
+    timestamp = os.time()
+  }
+  notifyPolice(payload)
+end, false)
+
+-- atm:attemptRob handler (with debug prints)
+RegisterServerEvent('atm:attemptRob')
+AddEventHandler('atm:attemptRob', function(atmKey, atmCoords, reportedPlayerCoords)
+  local src = source
+
+  if DEBUG_DISPATCH then
+    print(("[ATM] atm:attemptRob src=%s atmKey=%s atmCoords=%s reported=%s"):format(
+      tostring(src),
+      tostring(atmKey),
+      atmCoords and (("%0.2f,%0.2f,%0.2f"):format(atmCoords.x or 0, atmCoords.y or 0, atmCoords.z or 0)) or "nil",
+      reportedPlayerCoords and (("%0.2f,%0.2f,%0.2f"):format(reportedPlayerCoords.x or 0, reportedPlayerCoords.y or 0, reportedPlayerCoords.z or 0)) or "nil"
+    ))
+  end
+
+  if not atmKey then
+    TriggerClientEvent('chat:addMessage', src, { args = {'^1ATM', 'Invalid ATM identifier.'} })
+    return
+  end
+
+  local state = ATMState[atmKey]
+  if state and state.closedUntil and state.closedUntil > os.time() then
+    local remaining = state.closedUntil - os.time()
+    TriggerClientEvent('chat:addMessage', src, { args = {'^1ATM', ('This ATM is closed due to a recent robbery. Reopens in %ds'):format(remaining)} })
+    return
+  end
+
+  if atmCoords and reportedPlayerCoords then
+    local dx = atmCoords.x - reportedPlayerCoords.x
+    local dy = atmCoords.y - reportedPlayerCoords.y
+    local dz = (atmCoords.z or 0) - (reportedPlayerCoords.z or 0)
+    local dist = math.sqrt(dx*dx + dy*dy + dz*dz)
+    if dist > (ATMConfig.maxAllowedDistance or 5.0) then
+      print(("[SECURITY] atm:attemptRob denied for src=%d dist=%.2f (allowed=%.2f)"):format(src, dist, ATMConfig.maxAllowedDistance))
+      TriggerClientEvent('chat:addMessage', src, { args = {'^1ATM', 'Robbery failed: you are not close enough to the ATM.'} })
+      return
+    end
+  else
+    TriggerClientEvent('chat:addMessage', src, { args = {'^1ATM', 'Robbery failed: invalid coordinates provided.'} })
+    return
+  end
+
+  local cooldown = tonumber(ATMConfig.cooldown) or 600
+  local closedUntil = os.time() + cooldown
+  ATMState[atmKey] = { closedUntil = closedUntil, coords = atmCoords }
+  broadcastAtmState(atmKey, closedUntil)
+
+  local minR = tonumber(ATMConfig.minReward) or 500
+  local maxR = tonumber(ATMConfig.maxReward) or 3000
+  if minR > maxR then minR, maxR = maxR, minR end
+  local reward = math.random(minR, maxR)
+
+  local ok, err = pcall(function()
+    if exports['Az-Framework'] and exports['Az-Framework'].addMoney then
+      exports['Az-Framework']:addMoney(src, reward)
+    else
+      if exports['Az-Framework'] and exports['Az-Framework'].AddMoney then
+        exports['Az-Framework']:AddMoney(src, reward)
+      else
+        error("Az-Framework addMoney export missing")
+      end
+    end
+  end)
+
+  if ok then
+    TriggerClientEvent('chat:addMessage', src, { args = {'^2ATM', ('Robbery successful! You received $%d'):format(reward)} })
+  else
+    TriggerClientEvent('chat:addMessage', src, { args = {'^1ATM', 'Robbery succeeded but reward delivery failed.'} })
+    print(("[ATM] addMoney failed for src=%d err=%s"):format(src, tostring(err)))
+  end
+
+  local payload = {
+    source      = src,
+    atmKey      = atmKey,
+    coords      = atmCoords,
+    reward      = reward,
+    closedUntil = closedUntil,
+    timestamp   = os.time(),
+    blipDuration = DISPATCH_BLIP_SECONDS
+  }
+
+
+  if DEBUG_DISPATCH then
+    print(("[ATM] calling notifyPolice payload.atmKey=%s coords=%s"):format(
+      tostring(payload.atmKey),
+      payload.coords and (("%0.2f,%0.2f,%0.2f"):format(payload.coords.x or 0, payload.coords.y or 0, payload.coords.z or 0)) or "nil"
+    ))
+  end
+
+  notifyPolice(payload)
+
+  Citizen.CreateThread(function()
+    Citizen.Wait((cooldown * 1000) + 500)
+    if ATMState[atmKey] and ATMState[atmKey].closedUntil <= os.time() then
+      ATMState[atmKey] = nil
+      broadcastAtmState(atmKey, 0)
+    end
+  end)
+end)
+
+-- End of server.lua
