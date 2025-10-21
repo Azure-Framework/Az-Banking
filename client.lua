@@ -1,3 +1,7 @@
+-- client.lua
+-- Bank UI + ATM scanning + ATM robbery (glitch-minigames or ox_lib fallback)
+-- Requires: oxmysql for DB interactions server-side, Az-Framework (for addMoney), optional glitch-minigames / ox_lib (lib.skillCheck)
+
 -- CONFIG
 local Config = {
   ATMModels = { `prop_atm_01`, `prop_atm_02`, `prop_atm_03`, `prop_fleeca_atm` },
@@ -98,6 +102,7 @@ RegisterNUICallback('updateProfile', function(data,cb)
   cb({})
 end)
 
+-- only one updateData handler — sends payload to NUI
 RegisterNetEvent('my-bank-ui:updateData')
 AddEventHandler('my-bank-ui:updateData', function(d)
   SendNUIMessage({action='setData', data=d})
@@ -155,11 +160,10 @@ Citizen.CreateThread(function()
           if expiry and expiry > nowSec then
             local remaining = math.max(0, expiry - nowSec)
             local mins = math.floor(remaining/60); local secs = remaining % 60
-            DrawText3D(oCoords.x, oCoords.y, oCoords.z+1.0, ('~r~Closed (robbed) - %02d:%02d'):format(mins, secs), 0.5)
-            DrawText3D(oCoords.x, oCoords.y, oCoords.z+0.7, ('~w~(Reopens in %02d:%02d)'):format(mins, secs), 0.35)
+            DrawText3D(oCoords.x, oCoords.y, oCoords.z+1.0, ('~r~This atm is Closed - %02d:%02d'):format(mins, secs), 0.5)
           else
             -- show larger prompt (Open bank / Rob ATM)
-            DrawText3D(oCoords.x, oCoords.y, oCoords.z+1.0, "[~g~E~w~] Use Bank    [~r~H~w~] Rob ATM", Config.TextScale)
+            DrawText3D(oCoords.x, oCoords.y, oCoords.z+1.0, "[~g~E~w~] Use ATM    [~r~H~w~] Rob ATM", Config.TextScale)
             -- open bank NUI
             if IsControlJustReleased(0, Config.UseKey) then
               ExecuteCommand("bank")
@@ -212,6 +216,7 @@ function attemptAtmRobbery(atmCoords, playerCoords)
   end
 end
 
+-- client.lua: add this handler to show blip + nicer notification for police players
 RegisterNetEvent('dispatch:atmRobbery')
 AddEventHandler('dispatch:atmRobbery', function(payload)
   if not payload or not payload.coords then return end
@@ -229,7 +234,9 @@ AddEventHandler('dispatch:atmRobbery', function(payload)
   BeginTextCommandSetBlipName("STRING"); AddTextComponentString("ATM Robbery"); EndTextCommandSetBlipName(b)
   SetBlipFlashes(b, true)
   SetBlipFlashInterval(b, 250)
-  SetNewWaypoint(x, y)
+
+  -- optional: create a route on the map (uncomment if you want)
+  -- SetNewWaypoint(x, y)
 
   -- remove blip after duration seconds
   Citizen.SetTimeout(duration * 1000, function()
@@ -268,6 +275,40 @@ AddEventHandler('atm:closedStatus', function(atmKey, remainingSeconds)
 end)
 
 -- on resource start refresh bank UI state
+AddEventHandler('onClientResourceStart', function(res)
+  if GetCurrentResourceName() == res then
+    TriggerServerEvent('my-bank-ui:getData')
+  end
+end)
+
+
+-- add setPin & verifyPin to the NUI forward list
+for _,evt in ipairs({'getData','deposit','withdraw','transfer','addPayment','setPin','verifyPin'}) do
+  RegisterNUICallback(evt, function(data,cb)
+    TriggerServerEvent('my-bank-ui:'..evt, data)
+    cb({})
+  end)
+end
+
+-- existing callbacks preserved (transferInternal, updateProfile etc.)
+
+-- forward server-side pin events to the NUI
+RegisterNetEvent('my-bank-ui:pinVerified')
+AddEventHandler('my-bank-ui:pinVerified', function(success, message)
+  SendNUIMessage({ action = 'pinResult', success = success or false, message = message or "" })
+end)
+
+RegisterNetEvent('my-bank-ui:pinSet')
+AddEventHandler('my-bank-ui:pinSet', function(success, message)
+  SendNUIMessage({ action = 'pinSetResult', success = success or false, message = message or "" })
+end)
+
+-- existing UpdateData handler (keeps sending setData to NUI)
+AddEventHandler('my-bank-ui:updateData', function(d)
+  SendNUIMessage({action='setData', data=d})
+end)
+
+-- on resource start, request data as before
 AddEventHandler('onClientResourceStart', function(res)
   if GetCurrentResourceName() == res then
     TriggerServerEvent('my-bank-ui:getData')

@@ -1,325 +1,724 @@
-<!-- index.htm -->
-
 <!DOCTYPE html>
-<html lang="en" class="dark scroll-smooth">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>AzureBanking</title>
-
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            'bank-primary': '#141414',
-            'bank-accent': '#007FFF',
-            'bank-secondary': '#121212',
-            'bank-success': '#27AE60',
-            'bank-error': '#E74C3C'
-          },
-          boxShadow: {
-            'azure-glow': '0 0 25px -5px rgba(0,127,255,0.2)'
-          }
-        }
-      }
-    }
-  </script>
-
-  <!-- Scroll-kit CSS -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Framework Banking</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <!-- Modern font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: #121212; }
-    ::-webkit-scrollbar-thumb {
-      background-color: #007FFF;
-      border-radius: 4px;
-      box-shadow: 0 0 6px rgba(0,127,255,0.5);
+    * { box-sizing: border-box; font-family: "Inter", sans-serif; margin: 0; padding: 0; }
+
+    /* body is an overlay now */
+    body {
+      background-color: rgba(0,0,0,0.6);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
     }
-    ::-webkit-scrollbar-thumb:hover {
-      background-color: #339CFF;
-      box-shadow: 0 0 8px rgba(51,156,255,0.7);
+    body[hidden] { display:none !important; }
+
+    /* App card centered in the overlay
+       - Added explicit height and position:relative for JS resizer
+       - resize: both provides basic native resize support (works in desktop browsers)
+    */
+    .app {
+      width: 1020px;
+      height: 720px;                 /* default height */
+      max-width: calc(100% - 80px);
+      max-height: calc(100vh - 80px);
+      background: linear-gradient(180deg,#0f111a,#0b0c10);
+      border-radius: 12px;
+      overflow: auto;                /* required for CSS resize to work */
+      box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.03);
+      position: relative;            /* for absolute resizer */
+      resize: both;                  /* native resize handle (desktop) */
+      min-width: 500px;
+      min-height: 360px;
+      transition: none;              /* instant changes while dragging */
+    }
+
+    header { width: 100%; background-color: #141824; display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); border-top-left-radius: 12px; border-top-right-radius: 12px; position: sticky; top: 0; z-index: 5; }
+    header .logo { font-weight: 600; font-size: 18px; color: #4fc3f7; }
+
+    /* header right area groups nav + controls */
+    .header-right { display:flex; align-items:center; gap:12px; }
+
+    nav { display: flex; gap: 18px; }
+    nav button { background: none; border: none; color: #fff; font-size: 14px; cursor: pointer; padding: 8px 0; border-bottom: 2px solid transparent; transition: 0.12s; }
+    nav button.active { border-bottom: 2px solid #00bcd4; color: #00bcd4; }
+
+    /* size control inputs */
+    .size-controls { display:flex; align-items:center; gap:8px; }
+    .size-controls input {
+      width:64px;
+      padding:6px 8px;
+      border-radius:6px;
+      border:none;
+      background:#0f1116;
+      color:#fff;
+      font-size:13px;
+      text-align:center;
+    }
+    .size-controls button {
+      padding:6px 8px;
+      border-radius:6px;
+      border:none;
+      background:#263447;
+      color:#fff;
+      cursor:pointer;
+      font-size:13px;
+    }
+
+    /* containers now live inside the app and have their own padding */
+    .inner {
+      padding: 20px 28px 32px 28px;
+    }
+
+    .container { width: 100%; padding: 20px 0; display: none; animation: fadeIn 0.2s ease-in-out; }
+    .container.active { display: block; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Dashboard */
+    .summary, .accounts, .quick-actions { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+
+    .card { background: #1c2030; border-radius: 10px; padding: 16px; flex: 1; min-width: 200px; box-shadow: 0 0 12px rgba(0,0,0,0.18); }
+    .card h2 { font-size: 15px; margin-bottom: 8px; color: #ccc; }
+    .card p { font-size: 20px; font-weight: 600; }
+
+    .account { flex: 1; min-width: 260px; border-radius: 10px; padding: 18px; color: #fff; }
+    .checking { background: linear-gradient(90deg, #2196f3, #00bcd4); }
+    .savings { background: linear-gradient(90deg, #4caf50, #81c784); }
+
+    .quick-actions button { flex: 1; min-width: 160px; border: none; border-radius: 10px; padding: 14px; font-size: 14px; cursor: pointer; transition: 0.12s; color: #000; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .transfer-btn { background: #c8e6f9; } .deposit-btn { background: #d0f2d0; } .withdraw-btn { background: #f9d0d0; }
+    .quick-actions button:hover { opacity: 0.95; transform: translateY(-1px); }
+
+    .transactions { background: #1c2030; border-radius: 10px; padding: 14px; }
+    .transaction { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .transaction:last-child { border-bottom: none; }
+    .transaction p { font-size: 14px; }
+    .amount.red { color: #e57373; } .amount.green { color: #81c784; }
+
+    /* Form Pages */
+    .form-page { display: flex; gap: 18px; flex-wrap: wrap; }
+    .form-card { background: #1c2030; border-radius: 10px; padding: 18px; flex: 2; display: flex; flex-direction: column; gap: 12px; }
+    .form-card input, .form-card select { background: #141824; border: none; border-radius: 8px; color: #fff; padding: 10px; font-size: 14px; }
+    .form-card button { margin-top: 8px; padding: 10px; background: linear-gradient(90deg, #2196f3, #00bcd4); border: none; border-radius: 8px; color: #fff; cursor: pointer; font-weight: 600; font-size: 14px; transition: 0.12s; }
+    .form-card button:hover { opacity: 0.95; }
+    .info-card { background: #1c2030; border-radius: 10px; padding: 14px; flex: 1; }
+
+    /* resizer handle (visual & draggable) */
+    .resizer {
+      position: absolute;
+      right: 8px;
+      bottom: 8px;
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: se-resize;
+      z-index: 20;
+      opacity: 0.85;
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      border: 1px solid rgba(255,255,255,0.03);
+      transition: opacity .12s;
+    }
+    .resizer:hover { opacity: 1; }
+    .resizer:after {
+
+      font-size: 12px;
+      color: rgba(255,255,255,0.35);
+      transform: rotate(45deg);
+      line-height: 1;
+    }
+
+    /* make sure small screens still look ok */
+    @media (max-width: 640px) {
+      .app { width: 100%; max-height: 100vh; border-radius: 0; height: calc(100vh - 40px); }
+      header { padding: 10px; }
+      .inner { padding: 12px; }
+      .summary, .accounts, .quick-actions { gap: 10px; }
+      .size-controls { display:none; } /* hide size controls on small screens */
+      .resizer { display:none; }       /* disable resizer on mobile */
+      .app { resize: none; }          /* disable native resize on mobile */
     }
   </style>
-
-  <!-- Flowbite & AOS -->
-  <link href="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.css" rel="stylesheet">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" rel="stylesheet">
 </head>
-<body class="flex items-center justify-center bg-transparent h-screen overflow-hidden" style="display:none;">
+<body style="display:none;">
+  <div class="app" role="dialog" aria-modal="true">
+    <header>
+      <div class="logo">FiveM Bank</div>
 
-  <!-- Error Message Container -->
-  <div id="errorMsg" class="absolute top-4 bg-bank-error text-white px-4 py-2 rounded-lg hidden"></div>
+      <!-- header-right groups nav + size controls -->
+      <div class="header-right">
+        <nav>
+          <button class="nav-btn active" data-target="dashboard">Dashboard</button>
+          <button class="nav-btn" data-target="transfer">Transfer</button>
+          <button class="nav-btn" data-target="history">History</button>
+        </nav>
 
-  <div id="uiWindow" class="w-[1000px] h-[800px] flex bg-[#121212] rounded-xl shadow-xl overflow-hidden border border-[#2a2a2a]">
-    <!-- Sidebar -->
-    <aside class="w-72 bg-[#141414] p-6 flex-shrink-0 border-r border-[#2a2a2a]">
-      <h1 class="text-3xl font-black text-bank-accent mb-8 animate-pulse tracking-wider">AzureBanking</h1>
-      <ul class="space-y-1">
-        <li class="nav-item p-3 rounded-lg cursor-pointer text-gray-300 hover:bg-[#1a1a1a] hover:text-white" data-page="dashboard">Dashboard</li>
-        <li class="nav-item p-3 rounded-lg cursor-pointer text-gray-300 hover:bg-[#1a1a1a] hover:text-white" data-page="accounts">Accounts</li>
-        <li class="nav-item p-3 rounded-lg cursor-pointer text-gray-300 hover:bg-[#1a1a1a] hover:text-white" data-page="transfer">Transfer</li>
-        <li class="nav-item p-3 rounded-lg cursor-pointer text-gray-300 hover:bg-[#1a1a1a] hover:text-white" data-page="payments">Payments</li>
-        <li class="nav-item p-3 rounded-lg cursor-pointer text-gray-300 hover:bg-[#1a1a1a] hover:text-white" data-page="cards">Cards</li>
-        <li class="nav-item p-3 rounded-lg cursor-pointer text-gray-300 hover:bg-[#1a1a1a] hover:text-white" data-page="profile">Profile</li>
-      </ul>
-    </aside>
 
-    <!-- Main Content -->
-    <div class="flex-1 p-6 overflow-y-auto">
-      <div class="flex justify-between items-center mb-8">
-        <h2 id="pageTitle" class="text-2xl font-semibold text-gray-100">Dashboard</h2>
-        <button id="btnClose" class="px-4 py-2 bg-bank-error/20 hover:bg-bank-error/30 text-bank-error rounded-lg">Close</button>
       </div>
+    </header>
 
-      <div id="pages" class="space-y-6">
-        <!-- Dashboard -->
-        <section id="dashboard" class="page">
-          <div class="grid grid-cols-2 gap-6">
-            <!-- Card Preview -->
-            <div class="p-6 bg-gradient-to-br from-[#1a1a1a] to-[#141414] rounded-2xl border border-[#2a2a2a]">
-              <div class="flex justify-between items-start mb-6">
-                <div>
-                  <p class="text-sm text-gray-400">Current Balance</p>
-                  <h3 id="balance" class="text-2xl font-semibold text-white">$0.00</h3>
-                </div>
-                <div class="w-12 h-12 rounded-full bg-bank-accent/10 flex items-center justify-center">
-                  <svg class="w-6 h-6 text-bank-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
-                  </svg>
-                </div>
-              </div>
-              <div class="flex justify-between items-center">
-                <div>
-                  <p class="text-xs text-gray-400 mb-1">Card Holder</p>
-                  <p id="card-name" class="font-medium text-gray-200">CARDHOLDER</p>
-                </div>
-                <div>
-                  <p class="text-xs text-gray-400 mb-1">Expires</p>
-                  <p id="card-exp" class="font-medium text-gray-200">MM/YY</p>
-                </div>
-              </div>
-              <p id="card-number" class="mt-4 text-sm font-mono text-gray-400 tracking-wider">•••• •••• •••• 0000</p>
-            </div>
-            <!-- Funds Overview -->
-            <div class="p-6 bg-[#141414] rounded-2xl border border-[#2a2a2a]">
-              <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-semibold text-gray-200">Funds Overview</h3>
-              </div>
-              <div class="space-y-4">
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-300">Cash</span>
-                  <span id="cash-amt" class="font-medium text-gray-200">$0.00</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-300">Bank</span>
-                  <span id="bank-amt" class="font-medium text-gray-200">$0.00</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-300">Dept Paycheck</span>
-                  <span id="dept-pay" class="font-medium text-gray-200">$0.00</span>
-                </div>
-              </div>
-            </div>
+    <div class="inner">
+      <!-- Dashboard -->
+      <section id="dashboard" class="container active">
+        <div class="summary">
+          <div class="card"><h2>Total Balance</h2><p id="totalBalance">$0</p></div>
+          <div class="card"><h2>Accounts</h2><p id="accountsCount">0</p></div>
+          <div class="card"><h2>This Month</h2><p id="thisMonth" style="color:#81c784;">+$0</p></div>
+          <div class="card"><h2>Transactions</h2><p id="transactionsCount">0</p></div>
+        </div>
+
+        <div class="accounts">
+          <div class="account checking">
+            <h2>Checking Account</h2>
+            <p id="checkingAmt" style="font-size:22px;">$0</p>
+            <small>Card Number: <span id="checkingCard">0000 0000 0000 0000</span></small><br>
+            <small>Account: <span id="checkingAccount">0000000000</span></small>
           </div>
-        </section>
-
-        <!-- Accounts -->
-        <section id="accounts" class="page hidden">
-          <h3 class="text-xl font-bold text-gray-100 mb-6">Accounts</h3>
-          <div id="accountsList" class="space-y-4"></div>
-        </section>
-
-        <!-- Transfer (Internal) -->
-        <section id="transfer" class="page hidden">
-          <h3 class="text-xl font-bold text-gray-100 mb-6">Transfer Between Accounts</h3>
-          <div class="max-w-md mx-auto space-y-4">
-            <div>
-              <label class="block text-gray-300 mb-1" for="transferFrom">From</label>
-              <select id="transferFrom" class="w-full px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200">
-                <option value="cash">Cash</option>
-                <option value="checking">Checking</option>
-                <option value="savings">Savings</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-gray-300 mb-1" for="transferTo">To</label>
-              <select id="transferTo" class="w-full px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200">
-                <option value="checking">Checking</option>
-                <option value="savings">Savings</option>
-                <option value="cash">Cash</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-gray-300 mb-1" for="transferAmt">Amount</label>
-              <input id="transferAmt" type="number" min="0" placeholder="0.00" class="w-full px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
-            </div>
-            <button id="btnTransferInternal" class="w-full py-2 bg-bank-accent hover:bg-[#339CFF] text-black font-semibold rounded-lg">Transfer</button>
+          <div class="account savings">
+            <h2>Savings Account</h2>
+            <p id="savingsAmt" style="font-size:22px;">$0</p>
+            <small>Card Number: <span id="savingsCard">0000 0000 0000 0000</span></small><br>
+            <small>Account: <span id="savingsAccount">0000000000</span></small>
           </div>
-        </section>
+        </div>
 
-        <!-- Payments -->
-        <section id="payments" class="page hidden">
-          <h3 class="text-xl font-bold text-gray-100 mb-6">Payments</h3>
-          <div id="paymentsList" class="space-y-4 mb-6"></div>
-          <div class="p-6 bg-[#141414] rounded-2xl border border-[#2a2a2a] max-w-md mx-auto">
-            <h4 class="text-lg font-semibold text-gray-200 mb-4">Schedule Payment</h4>
-            <input id="paymentPayee" type="text" placeholder="Payee Name" class="w-full mb-2 px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
-            <input id="paymentAmt" type="number" placeholder="Amount" class="w-full mb-2 px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
-            <div class="flex gap-2 mb-4">
-              <input id="paymentDate" type="date" class="w-1/2 px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
-              <input id="paymentTime" type="time" class="w-1/2 px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
-            </div>
-            <button id="btnAddPayment" class="w-full py-2 bg-bank-accent hover:bg-[#339CFF] text-black font-semibold rounded-lg">Add Payment</button>
+        <div class="quick-actions">
+          <button class="transfer-btn" data-target="transfer"><i class="fa-solid fa-right-left"></i> Transfer</button>
+          <button class="deposit-btn" data-target="deposit"><i class="fa-solid fa-money-bill-trend-up"></i> Deposit</button>
+          <button class="withdraw-btn" data-target="withdraw"><i class="fa-solid fa-money-bill-transfer"></i> Withdraw</button>
+        </div>
+
+        <div class="transactions">
+          <h2 style="margin-bottom:12px;">Recent Transactions</h2>
+          <div id="recentTransactions">
+            <div class="transaction"><p>No transactions to display.</p></div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        <!-- Cards -->
-        <section id="cards" class="page hidden">
-          <h3 class="text-xl font-bold text-gray-100 mb-6">Cards</h3>
-          <div id="cardsList" class="space-y-4"></div>
-        </section>
+      <!-- Transfer -->
+      <section id="transfer" class="container">
+        <div class="form-page">
+          <div class="form-card">
+            <select id="transferSource">
+              <option value="">Select source account</option>
+            </select>
+            <select id="transferTo" style="display:none;">
+              <option value="">Select destination account</option>
+            </select>
+            <input id="transferRecipient" type="text" placeholder="Recipient account number or acct:<id>" />
+            <input id="transferAmount" type="number" placeholder="Amount" />
+            <input id="transferDesc" type="text" placeholder="Description (optional)" />
+            <button id="btnTransfer">Transfer Money</button>
+          </div>
+          <div class="info-card">
+            <h3>Transfer Info</h3>
+            <p>Fee: <span style="color:#81c784;">FREE</span></p>
+            <p>Processing Time: Instant</p>
+            <p>Daily Limit: $50,000</p>
+          </div>
+        </div>
+      </section>
 
-        <!-- Profile -->
-        <section id="profile" class="page hidden">
-          <h3 class="text-xl font-bold text-gray-100 mb-6">Profile</h3>
-          <form id="profileForm" class="max-w-md mx-auto p-6 bg-[#141414] rounded-2xl border border-[#2a2a2a] space-y-4">
-            <div class="flex justify-center">
-              <img id="profilePicPreview" class="w-24 h-24 rounded-full border-4 border-bank-accent" src="" alt="Profile Picture"/>
-            </div>
-            <input id="profilePicInput" type="url" placeholder="Profile Picture URL" class="w-full px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-gray-200"/>
-            <button id="btnSaveProfile" type="button" class="w-full py-2 bg-bank-accent hover:bg-[#339CFF] text-black font-semibold rounded-lg">Save Profile Picture</button>
-          </form>
-        </section>
-      </div>
+      <!-- Deposit -->
+      <section id="deposit" class="container">
+        <div class="form-page">
+          <div class="form-card">
+            <select id="depositTarget">
+              <option value="">Select account to deposit into</option>
+            </select>
+            <input id="depositAmount" type="number" placeholder="Amount to deposit" />
+            <input id="depositDesc" type="text" placeholder="Description (optional)" />
+            <button id="btnDeposit">Confirm Deposit</button>
+          </div>
+          <div class="info-card">
+            <h3>Deposit Info</h3>
+            <p>Minimum: $1</p>
+            <p>Processing Time: Instant</p>
+            <small style="color:#aaa;">💡 Tip: Deposits reflect instantly into your selected account.</small>
+          </div>
+        </div>
+      </section>
+
+      <!-- Withdraw -->
+      <section id="withdraw" class="container">
+        <div class="form-page">
+          <div class="form-card">
+            <select id="withdrawSource">
+              <option value="">Select account to withdraw from</option>
+            </select>
+            <input id="withdrawAmount" type="number" placeholder="Amount to withdraw" />
+            <input id="withdrawDesc" type="text" placeholder="Reason (optional)" />
+            <button id="btnWithdraw">Confirm Withdraw</button>
+          </div>
+          <div class="info-card">
+            <h3>Withdraw Info</h3>
+            <p>Fee: <span style="color:#e57373;">$0</span></p>
+            <p>Processing Time: Instant</p>
+            <small style="color:#aaa;">💡 Tip: Make sure your account has enough balance before withdrawal.</small>
+          </div>
+        </div>
+      </section>
+
+      <!-- History -->
+      <section id="history" class="container">
+        <div class="summary">
+          <div class="card"><h2>Total Transactions</h2><p id="histTotal">0</p></div>
+          <div class="card"><h2>Money In</h2><p id="histIn" style="color:#81c784;">+$0</p></div>
+          <div class="card"><h2>Money Out</h2><p id="histOut" style="color:#e57373;">-$0</p></div>
+        </div>
+        <div class="transactions">
+          <div id="historyList">
+            <div class="transaction"><p>No history available.</p></div>
+          </div>
+        </div>
+      </section>
     </div>
+
+    <!-- visible draggable resizer in bottom-right (nice affordance, works in addition to native resize) -->
+    <div class="resizer" id="resizer" title="Drag to resize"></div>
   </div>
 
-  <!-- Scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
-  <audio id="transferSound" src="https://banksound.azurewebsites.xyz"></audio>
-  <script>
-    function showPage(id) {
-      document.querySelectorAll('.page').forEach(p => p.id === id ? p.classList.remove('hidden') : p.classList.add('hidden'));
-      document.getElementById('pageTitle').innerText = id.charAt(0).toUpperCase() + id.slice(1);
-    }
+<script>
+/*  ---------- Resizer logic (drag to resize) ----------
+    - Adds a mousedown -> mousemove -> mouseup listener to the .resizer
+    - Updates .app.style.width / height as user drags
+    - Updates header inputs to reflect current size
+*/
 
-    function nui(evt, payload = {}) {
-      fetch(`https://${GetParentResourceName()}/${evt}`, {
+(function(){
+  const app = document.querySelector('.app');
+  const resizer = document.getElementById('resizer');
+  const inputW = document.getElementById('appWidth');
+  const inputH = document.getElementById('appHeight');
+  const applyBtn = document.getElementById('applySize');
+  const resetBtn = document.getElementById('resetSize');
+
+  const DEFAULT = { w: 1020, h: 720 };
+  // Initialize inputs
+  function updateInputs() {
+    const rect = app.getBoundingClientRect();
+    // Use offsetWidth/Height for integer px
+    inputW.value = Math.round(app.offsetWidth);
+    inputH.value = Math.round(app.offsetHeight);
+  }
+
+  // Apply precise size from inputs (pixels)
+  applyBtn?.addEventListener('click', () => {
+    const w = Math.max(320, Math.round(Number(inputW.value) || DEFAULT.w));
+    const h = Math.max(240, Math.round(Number(inputH.value) || DEFAULT.h));
+    app.style.width = w + 'px';
+    app.style.height = h + 'px';
+  });
+
+  resetBtn?.addEventListener('click', () => {
+    app.style.width = DEFAULT.w + 'px';
+    app.style.height = DEFAULT.h + 'px';
+    updateInputs();
+  });
+
+  // Update inputs on window resize (keeps values accurate)
+  window.addEventListener('resize', updateInputs);
+
+  // Drag-to-resize implementation
+  let dragging = false;
+  let startX=0, startY=0, startW=0, startH=0;
+
+  resizer?.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    dragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    startW = app.offsetWidth;
+    startH = app.offsetHeight;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'se-resize';
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    // optional: enforce max sizes based on viewport
+    const maxW = Math.max(320, window.innerWidth - 80);
+    const maxH = Math.max(240, window.innerHeight - 80);
+    let newW = Math.min(maxW, Math.max(320, startW + dx));
+    let newH = Math.min(maxH, Math.max(240, startH + dy));
+    app.style.width = Math.round(newW) + 'px';
+    app.style.height = Math.round(newH) + 'px';
+    updateInputs();
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
+    updateInputs();
+  });
+
+  // Double-click the resizer resets size
+  resizer?.addEventListener('dblclick', () => {
+    app.style.width = DEFAULT.w + 'px';
+    app.style.height = DEFAULT.h + 'px';
+    updateInputs();
+  });
+
+  // if user uses native CSS resize (drag edge), listen for transition end via polling
+  let pollTimer = null;
+  function startPoll() {
+    stopPoll();
+    pollTimer = setInterval(updateInputs, 80);
+  }
+  function stopPoll() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+
+  app.addEventListener('mousedown', (e) => {
+    // start polling if user drags native resize handle (can't detect direct event)
+    if (e.target === app) startPoll();
+  });
+  window.addEventListener('mouseup', stopPoll);
+
+  // init on DOM ready
+  updateInputs();
+})();
+</script>
+<script>
+/*
+  Fixed NUI script for the banking UI.
+  - Robustly reads server payloads (payload may arrive as m or m.data when action === 'setData')
+  - Avoids showing placeholder account/card numbers (all-zeros)
+  - Chooses card number from account.card_number, then top-level payload.card_number, then payload.cards[0]
+  - Masks card numbers as "•••• •••• •••• 1234"
+  - Populates select lists with acct:<id> values plus a 'cash' option
+  - Keeps previous UI interactions intact
+*/
+
+function nui(evt, payload = {}) {
+  try {
+    const parent = (typeof GetParentResourceName === 'function') ? GetParentResourceName() : null;
+    if (parent) {
+      fetch(`https://${parent}/${evt}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json; charset=utf-8' },
         body: JSON.stringify(payload)
-      });
+      }).catch(e => console.error('nui fetch error', e));
+    } else {
+      // in browser dev testing
+      console.log('NUI POST (simulated):', evt, payload);
     }
+  } catch (e) { console.error('nui error', e); }
+}
 
-    window.addEventListener('message', e => {
-      const m = e.data;
-      if (m.action === 'show') document.body.style.display = 'flex';
-      if (m.action === 'hide') document.body.style.display = 'none';
-      if (m.action === 'refreshData') nui('getData');
-      if (m.action === 'setData') {
-        // Error handling
-        const errEl = document.getElementById('errorMsg');
-        if (m.data.transferError) {
-          errEl.innerText = m.data.transferError;
-          errEl.classList.remove('hidden');
-          setTimeout(() => errEl.classList.add('hidden'), 4000);
-        } else {
-          errEl.classList.add('hidden');
-        }
 
-        const d = m.data;
+function safeSet(id, txt) {
+  try {
+    const el = document.getElementById(id);
+    if (el) el.innerText = txt;
+  } catch (e) { console.error('safeSet', id, e); }
+}
 
-        // Dashboard
-        document.getElementById('balance').innerText = `$${d.bank.toFixed(2)}`;
+function fmtMoney(n) { return `$${Number(n || 0).toFixed(2)}`; }
 
-        // Funds Overview
-        document.getElementById('cash-amt').innerText = `$${d.cash.toFixed(2)}`;
-        document.getElementById('bank-amt').innerText = `$${d.bank.toFixed(2)}`;
-        document.getElementById('dept-pay').innerText = `$${d.department_paycheck.toFixed(2)}`;
+// Helpers for validation & formatting
+function stripDigits(s) { return String(s || '').replace(/\D/g, ''); }
+function isPlaceholderAccountNumber(s) {
+  const t = stripDigits(s);
+  return t.length === 0 || /^0+$/.test(t);
+}
+function isPlaceholderCardNumber(s) {
+  const t = stripDigits(s);
+  return t.length === 0 || /^0+$/.test(t);
+}
+function maskCardNumber(num) {
+  if (!num) return '—';
+  const digits = stripDigits(num);
+  if (digits.length < 4) return '—';
+  const last4 = digits.slice(-4);
+  return '•••• •••• •••• ' + last4;
+}
+function formatAccountNumber(num) {
+  if (!num) return '—';
+  if (isPlaceholderAccountNumber(num)) return '—';
+  return String(num);
+}
 
-        // Card Preview
-        document.getElementById('card-number').innerText = d.card_number
-          ? `•••• •••• •••• ${d.card_number.slice(-4)}`
-          : '•••• •••• •••• 0000';
-        document.getElementById('card-exp').innerText = (d.exp_month && d.exp_year)
-          ? `${String(d.exp_month).padStart(2,'0')}/${String(d.exp_year).slice(-2)}` : '';
+// Choose a primary account of a given type (prefer positive balance)
+function pickPrimaryAccount(accounts, type) {
+  if (!Array.isArray(accounts)) return null;
+  const byType = accounts.filter(a => String(a.type) === String(type));
+  if (byType.length === 0) return null;
+  for (const a of byType) if (Number(a.balance) > 0) return a;
+  return byType[0];
+}
 
-        // Accounts
-        const accDiv = document.getElementById('accountsList'); accDiv.innerHTML = '';
-        d.accounts.forEach(a => {
-          const p = document.createElement('p'); p.className = 'text-gray-200';
-          if (a.type === 'savings') {
-            p.innerHTML = `#${a.id} (Savings): $${parseFloat(a.balance).toFixed(2)}<br>
-              <small>APR: ${(a.apr*100).toFixed(2)}%, Daily Interest: $${a.daily_interest.toFixed(2)}</small>`;
-          } else {
-            p.textContent = `#${a.id} (Checking): $${parseFloat(a.balance).toFixed(2)}`;
-          }
-          accDiv.appendChild(p);
-        });
+// Find best card number for an account or payload
+function findCardForAccount(account, payload) {
+  // 1) account.card_number
+  if (account && account.card_number && !isPlaceholderCardNumber(account.card_number)) return String(account.card_number);
+  // 2) top-level payload.card_number
+  if (payload && payload.card_number && !isPlaceholderCardNumber(payload.card_number)) return String(payload.card_number);
+  // 3) payload.cards array first element
+  if (payload && Array.isArray(payload.cards) && payload.cards.length > 0) {
+    const c = payload.cards[0];
+    if (c && c.card_number && !isPlaceholderCardNumber(c.card_number)) return String(c.card_number);
+  }
+  return null;
+}
 
-        // Payments
-        const payDiv = document.getElementById('paymentsList'); payDiv.innerHTML = '';
-        if (d.payments.length) {
-          d.payments.forEach(pm => {
-            const p = document.createElement('p'); p.className = 'text-gray-200';
-            p.innerHTML = `To <strong>${pm.payee}</strong>: $${parseFloat(pm.amount).toFixed(2)} on ${new Date(pm.schedule_date).toLocaleString()}`;
-            payDiv.appendChild(p);
-          });
-        } else {
-          payDiv.textContent = 'No upcoming payments.'; payDiv.className = 'text-gray-400';
-        }
+function buildTransactionRow(tx) {
+  const div = document.createElement('div');
+  div.className = 'transaction';
+  const left = document.createElement('div');
+  const desc = document.createElement('p');
+  desc.innerText = tx.description || tx.label || tx.payee || 'Transaction';
+  const meta = document.createElement('small');
+  meta.style.color = 'rgba(255,255,255,0.6)';
+  // support various timestamp shapes
+  if (tx.date) {
+    try { meta.innerText = new Date(Number(tx.date)).toLocaleString(); } catch(e){ meta.innerText = tx.date; }
+  } else if (tx.schedule_date) {
+    try { meta.innerText = new Date(Number(tx.schedule_date)).toLocaleString(); } catch(e){ meta.innerText = tx.schedule_date; }
+  } else meta.innerText = tx.time || '';
+  left.appendChild(desc);
+  left.appendChild(meta);
 
-        // Cards
-        const cardsDiv = document.getElementById('cardsList'); cardsDiv.innerHTML = '';
-        d.cards.forEach(c => {
-          const p = document.createElement('p'); p.className = 'text-gray-200';
-          p.textContent = `•••• •••• •••• ${c.card_number.slice(-4)} — ${String(c.exp_month).padStart(2,'0')}/${String(c.exp_year).slice(-2)} (${c.status})`;
-          cardsDiv.appendChild(p);
-        });
+  const right = document.createElement('div');
+  const amt = document.createElement('p');
+  const value = Number(tx.amount || 0);
+  amt.innerText = fmtMoney(Math.abs(value));
+  amt.className = 'amount ' + (value < 0 ? 'red' : 'green');
+  right.appendChild(amt);
 
-        // Profile
-        const picUrl = d.profile_picture || `https://api.dicebear.com/6.x/identicon/svg?seed=AzureBank`;
-        document.getElementById('profilePicPreview').src = picUrl;
-        document.getElementById('profilePicInput').value = d.profile_picture || '';
-      }
+  div.appendChild(left);
+  div.appendChild(right);
+  return div;
+}
+
+function populateAccountSelects(accounts = []) {
+  function buildOptionText(acct) {
+    const acctNum = formatAccountNumber(acct.account_number || acct.account_number === 0 ? acct.account_number : String(acct.id));
+    const bal = fmtMoney(acct.balance || 0);
+    const typeTitle = acct.type ? (acct.type.charAt(0).toUpperCase() + acct.type.slice(1)) : 'Account';
+    const last4 = acct.card_number && !isPlaceholderCardNumber(acct.card_number) ? ` • Card: **** ${stripDigits(acct.card_number).slice(-4)}` : '';
+    return `${typeTitle} #${acct.id} (Acc: ${acctNum})${last4} — ${bal}`;
+  }
+
+  const selects = [
+    document.getElementById('transferSource'),
+    document.getElementById('transferTo'),
+    document.getElementById('depositTarget'),
+    document.getElementById('withdrawSource')
+  ];
+
+  function setSelectOptions(selectEl) {
+    if (!selectEl) return;
+    selectEl.innerHTML = '';
+    const cashOpt = document.createElement('option');
+    cashOpt.value = 'cash';
+    cashOpt.innerText = 'Cash Wallet';
+    selectEl.appendChild(cashOpt);
+    accounts.forEach(a => {
+      const o = document.createElement('option');
+      o.value = `acct:${a.id}`;
+      o.innerText = buildOptionText(a);
+      selectEl.appendChild(o);
     });
+  }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      AOS.init({ duration: 800, once: true, offset: 50 });
-      document.querySelectorAll('.nav-item').forEach(li => li.onclick = () => showPage(li.dataset.page));
+  selects.forEach(setSelectOptions);
 
-      document.getElementById('btnTransferInternal').onclick = () => {
-        const sound = document.getElementById('transferSound');
-        sound.currentTime = 0;
-        sound.play().catch(e => console.error("Playback failed:", e));
-        nui('transferInternal', {
-          from:   document.getElementById('transferFrom').value,
-          to:     document.getElementById('transferTo').value,
-          amount: document.getElementById('transferAmt').value
-        });
-      };
+  // show transferTo if it exists
+  const tTo = document.getElementById('transferTo');
+  if (tTo) tTo.style.display = '';
+}
 
-      document.getElementById('btnSaveProfile').onclick = () => {
-        nui('updateProfile', { profile_picture: document.getElementById('profilePicInput').value });
-      };
+function applyDataToUI(data = {}) {
+  // Defensive: ensure accounts is an array
+  const accounts = Array.isArray(data.accounts) ? data.accounts : [];
 
-      document.getElementById('btnClose').onclick = () => {
-        document.body.style.display = 'none';
-        nui('close');
-      };
-      document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') {
-          document.body.style.display = 'none';
-          nui('close');
-        }
-      });
-    });
-  </script>
+  // Totals
+  const checkingTotal = Number(data.checking || 0);
+  const savingsTotal = Number(data.savings || 0);
+  const bankTotal = Number(data.bank || (checkingTotal + savingsTotal));
+
+  safeSet('totalBalance', fmtMoney(data.total ?? bankTotal));
+  safeSet('accountsCount', accounts.length);
+  // Dynamic "This Month" colour + text
+const monthChange = Number(data.month_change || 0);
+const thisMonthEl = document.getElementById('thisMonth');
+if (thisMonthEl) {
+  const prefix = monthChange >= 0 ? '+' : '-';
+  thisMonthEl.textContent = `${prefix}${fmtMoney(Math.abs(monthChange))}`;
+  thisMonthEl.style.color = monthChange >= 0 ? '#81c784' : '#e57373';
+}
+
+  safeSet('thisMonth', (typeof data.month_change !== 'undefined') ? ((data.month_change >= 0 ? '+' : '-') + fmtMoney(Math.abs(data.month_change))) : '+$0');
+  safeSet('transactionsCount', (Array.isArray(data.transactions) ? data.transactions.length : (data.transactions_count ?? 0)));
+
+  // Pick primary checking & savings
+  const checking = pickPrimaryAccount(accounts, 'checking') || accounts.find(a => a.type === 'checking') || null;
+  const savings  = pickPrimaryAccount(accounts, 'savings')  || accounts.find(a => a.type === 'savings')  || null;
+
+  // Amount displays (prefer account-specific balances if available)
+  safeSet('checkingAmt', fmtMoney((checking && Number(checking.balance) !== NaN) ? Number(checking.balance) : checkingTotal));
+  safeSet('savingsAmt', fmtMoney((savings  && Number(savings.balance) !== NaN) ? Number(savings.balance) : savingsTotal));
+
+  // Account numbers (avoid placeholder)
+  const chkAcctNum = checking ? formatAccountNumber(checking.account_number) : (Array.isArray(accounts) && accounts.length ? formatAccountNumber(accounts[0].account_number) : '—');
+  const svgAcctNum = savings  ? formatAccountNumber(savings.account_number)  : '—';
+  safeSet('checkingAccount', chkAcctNum);
+  safeSet('savingsAccount', svgAcctNum);
+
+  // Card numbers (determine best card for each)
+  const chkCardRaw = findCardForAccount(checking, data);
+  const svgCardRaw = findCardForAccount(savings, data);
+
+  safeSet('checkingCard', maskCardNumber(chkCardRaw));
+  safeSet('savingsCard', maskCardNumber(svgCardRaw));
+
+  // Transactions
+  const txDiv = document.getElementById('recentTransactions');
+  if (txDiv) {
+    txDiv.innerHTML = '';
+    const txs = Array.isArray(data.transactions) ? data.transactions : (Array.isArray(data.payments) ? data.payments : []);
+    if (txs.length === 0) {
+      txDiv.innerHTML = '<div class="transaction"><p>No transactions to display.</p></div>';
+    } else {
+      txs.slice(0, 8).forEach(t => txDiv.appendChild(buildTransactionRow(t)));
+    }
+  }
+
+  // History list
+  const histDiv = document.getElementById('historyList');
+  if (histDiv) {
+    histDiv.innerHTML = '';
+    const hist = Array.isArray(data.history) ? data.history : (Array.isArray(data.transactions) ? data.transactions : []);
+    if (hist.length === 0) histDiv.innerHTML = '<div class="transaction"><p>No history available.</p></div>';
+    else hist.forEach(h => histDiv.appendChild(buildTransactionRow(h)));
+  }
+
+  if (typeof data.money_in !== 'undefined') safeSet('histIn', `+${fmtMoney(data.money_in)}`);
+  if (typeof data.money_out !== 'undefined') safeSet('histOut', `-${fmtMoney(data.money_out)}`);
+  if (typeof data.total_transactions !== 'undefined') safeSet('histTotal', data.total_transactions);
+
+  // populate account selects
+  populateAccountSelects(accounts);
+}
+
+// message listener — handles both `{ action: 'setData', data: ... }` and raw payloads
+window.addEventListener('message', (e) => {
+  const m = e.data;
+  if (!m) return;
+  if (m.action === 'show') { document.body.style.display = 'flex'; nui('getData'); return; }
+  if (m.action === 'hide') { document.body.style.display = 'none'; return; }
+  if (m.action === 'refreshData') { nui('getData'); return; }
+
+  // setData may be sent with { action: 'setData', data: {...} }
+  if (m.action === 'setData') {
+    applyDataToUI(m.data || {});
+    return;
+  }
+
+  // Fallback: sometimes server pushes raw payload (no action), e.g. SendNUIMessage({action='setData', data=d}) vs older flows
+  // If the message looks like a payload (has accounts or card_number etc.), treat it as data
+  if (m.accounts || m.card_number || m.cards) {
+    applyDataToUI(m);
+    return;
+  }
+
+  // transferResult handling
+  if (m.action === 'transferResult') {
+    console.log('transferResult', m);
+    if (m.success) nui('getData');
+  }
+});
+
+// UI interactions
+document.addEventListener('DOMContentLoaded', () => {
+  // nav buttons
+  document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.container').forEach(c => c.classList.remove('active'));
+    const t = document.getElementById(btn.dataset.target);
+    if (t) t.classList.add('active');
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }));
+
+  // quick actions
+  document.querySelectorAll('.quick-actions button[data-target]').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.container').forEach(c => c.classList.remove('active'));
+    const t = document.getElementById(btn.dataset.target);
+    if (t) t.classList.add('active');
+  }));
+
+  // Transfer
+  document.getElementById('btnTransfer')?.addEventListener('click', () => {
+    const from = document.getElementById('transferSource')?.value || 'cash';
+    let toVal = '';
+    const toSelect = document.getElementById('transferTo');
+    if (toSelect && toSelect.value) toVal = toSelect.value;
+    else {
+      const recipient = document.getElementById('transferRecipient')?.value || '';
+      toVal = recipient.startsWith('acct:') ? recipient : recipient || '';
+    }
+    const payload = {
+      from: from || 'cash',
+      to: toVal || '',
+      amount: Number(document.getElementById('transferAmount')?.value || 0),
+      description: document.getElementById('transferDesc')?.value || ''
+    };
+    nui('transferInternal', payload);
+    // optimistic refresh
+    setTimeout(() => nui('getData'), 300);
+  });
+
+  // Deposit
+  document.getElementById('btnDeposit')?.addEventListener('click', () => {
+    const payload = {
+      to: document.getElementById('depositTarget')?.value || '',
+      amount: Number(document.getElementById('depositAmount')?.value || 0),
+      description: document.getElementById('depositDesc')?.value || ''
+    };
+    nui('deposit', payload);
+    setTimeout(() => nui('getData'), 300);
+  });
+
+  // Withdraw
+  document.getElementById('btnWithdraw')?.addEventListener('click', () => {
+    const payload = {
+      from: document.getElementById('withdrawSource')?.value || '',
+      amount: Number(document.getElementById('withdrawAmount')?.value || 0),
+      reason: document.getElementById('withdrawDesc')?.value || ''
+    };
+    nui('withdraw', payload);
+    setTimeout(() => nui('getData'), 300);
+  });
+
+  // Escape hides the UI and tells host
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.body.style.display = 'none';
+      nui('close');
+    }
+  });
+
+  // initial request
+  setTimeout(() => { nui('getData'); }, 150);
+});
+</script>
+
 </body>
 </html>
