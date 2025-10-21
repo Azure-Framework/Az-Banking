@@ -2,7 +2,7 @@ fx_version 'cerulean'
 game 'gta5'
 author 'Azure(TheStoicBear)'
 description 'Azure Framework Banking'
-version ' 1.3.0'
+version 'v1.3.0'
 lua54 'yes'
 shared_scripts {
   '@ox_lib/init.lua',
@@ -14,4 +14,5 @@ server_script 'server.lua'
 ui_page 'ui/index.html'
 files {
   'ui/index.html'
+
 }
