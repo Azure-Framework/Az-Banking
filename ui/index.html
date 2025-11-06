@@ -1,724 +1,654 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Framework Banking</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <!-- Modern font -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <style>
-    * { box-sizing: border-box; font-family: "Inter", sans-serif; margin: 0; padding: 0; }
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>FiveM Bank</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --panel:#0f141c;--panel-2:#121928;--ink:#e7eef7;--muted:#9fb0c5;
+    --kpi:#1b2436;--border:rgba(255,255,255,.06);
+    --primary:#21c2f8;--primary-2:#69e0ff;
+    --good:#67e3a7;--bad:#ef7b7b;
+    --radius:14px;
+    --shadow:0 10px 38px rgba(0,0,0,.45), 0 4px 12px rgba(0,0,0,.35)
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:transparent;color:var(--ink);font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
 
-    /* body is an overlay now */
-    body {
-      background-color: rgba(0,0,0,0.6);
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      padding: 20px;
-    }
-    body[hidden] { display:none !important; }
+  /* App frame */
+  .app{
+    position:fixed;left:50%;top:60px;transform:translateX(-50%);
+    width:1080px;max-width:calc(100% - 60px);
+    height:720px;max-height:calc(100vh - 120px);
+    background:var(--panel);
+    border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);
+    overflow:hidden;
+    display:grid;grid-template-columns:260px 1fr;
+  }
+  @media (max-width:960px){
+    .app{grid-template-columns:1fr;height:calc(100vh - 40px);top:20px}
+  }
 
-    /* App card centered in the overlay
-       - Added explicit height and position:relative for JS resizer
-       - resize: both provides basic native resize support (works in desktop browsers)
-    */
-    .app {
-      width: 1020px;
-      height: 720px;                 /* default height */
-      max-width: calc(100% - 80px);
-      max-height: calc(100vh - 80px);
-      background: linear-gradient(180deg,#0f111a,#0b0c10);
-      border-radius: 12px;
-      overflow: auto;                /* required for CSS resize to work */
-      box-shadow: 0 10px 40px rgba(0,0,0,0.6);
-      border: 1px solid rgba(255,255,255,0.03);
-      position: relative;            /* for absolute resizer */
-      resize: both;                  /* native resize handle (desktop) */
-      min-width: 500px;
-      min-height: 360px;
-      transition: none;              /* instant changes while dragging */
-    }
+  /* Sidebar (navigation only) */
+  .side{
+    background:linear-gradient(180deg,#0e1420,#0a0f19);
+    border-right:1px solid var(--border);
+    padding:16px 14px;
+    display:flex;flex-direction:column;gap:14px
+  }
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--primary);box-shadow:0 0 18px var(--primary)}
+  .nav{display:flex;flex-direction:column;margin-top:6px}
+  .tab{all:unset;display:flex;align-items:center;gap:10px;padding:10px 12px;margin:2px 0;border-radius:10px;cursor:pointer;color:var(--ink);opacity:.78}
+  .tab i{width:18px;text-align:center}
+  .tab:hover{background:rgba(255,255,255,.04);opacity:1}
+  .tab.active{
+    background:linear-gradient(90deg,rgba(33,194,248,.18),rgba(33,194,248,.06));
+    border:1px solid rgba(105,224,255,.25);opacity:1
+  }
 
-    header { width: 100%; background-color: #141824; display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); border-top-left-radius: 12px; border-top-right-radius: 12px; position: sticky; top: 0; z-index: 5; }
-    header .logo { font-weight: 600; font-size: 18px; color: #4fc3f7; }
+  /* Main column (scroll fix: min-height:0 + flex) */
+  .main{
+    display:flex;flex-direction:column;height:100%;
+    min-height:0;
+    overflow:hidden;
+  }
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 18px;border-bottom:1px solid var(--border);
+    background:rgba(255,255,255,.02)
+  }
+  .title{font-weight:600;letter-spacing:.3px}
+  .hint{color:var(--muted);font-size:12px}
 
-    /* header right area groups nav + controls */
-    .header-right { display:flex; align-items:center; gap:12px; }
+  .page{
+    display:none;
+    flex:1;
+    min-height:0;
+    overflow:auto;
+  }
+  .page.active{display:block}
 
-    nav { display: flex; gap: 18px; }
-    nav button { background: none; border: none; color: #fff; font-size: 14px; cursor: pointer; padding: 8px 0; border-bottom: 2px solid transparent; transition: 0.12s; }
-    nav button.active { border-bottom: 2px solid #00bcd4; color: #00bcd4; }
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:16px 18px}
+  .kpi{background:var(--kpi);border:1px solid var(--border);border-radius:12px;padding:14px}
+  .kpi h4{margin:0 0 6px;color:var(--muted);font-weight:500;font-size:13px}
+  .kpi .val{font-size:22px;font-weight:700}
 
-    /* size control inputs */
-    .size-controls { display:flex; align-items:center; gap:8px; }
-    .size-controls input {
-      width:64px;
-      padding:6px 8px;
-      border-radius:6px;
-      border:none;
-      background:#0f1116;
-      color:#fff;
-      font-size:13px;
-      text-align:center;
-    }
-    .size-controls button {
-      padding:6px 8px;
-      border-radius:6px;
-      border:none;
-      background:#263447;
-      color:#fff;
-      cursor:pointer;
-      font-size:13px;
-    }
+  .content{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:0 18px 18px}
+  @media (max-width:960px){ .content{grid-template-columns:1fr} }
+  .account{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:16px;position:relative;overflow:hidden}
+  .account:before{content:'';position:absolute;inset:auto -30% -30% auto;width:280px;height:280px;border-radius:50%;filter:blur(40px);opacity:.14;pointer-events:none}
+  .account.checking:before{background:radial-gradient(closest-side,var(--primary-2),transparent)}
+  .account.savings:before{background:radial-gradient(closest-side,var(--good),transparent)}
+  .account h3{margin:0 0 6px}
+  .sub{color:var(--muted);font-size:13px}
+  .amt{font-size:28px;font-weight:800;margin:6px 0 0}
 
-    /* containers now live inside the app and have their own padding */
-    .inner {
-      padding: 20px 28px 32px 28px;
-    }
+  .panel{margin:16px 18px;background:var(--panel-2);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .panel .hd{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.02)}
+  .panel .hd h4{margin:0}
+  .panel .body{padding:6px 10px 8px}
 
-    .container { width: 100%; padding: 20px 0; display: none; animation: fadeIn 0.2s ease-in-out; }
-    .container.active { display: block; }
+  .table{width:100%;border-collapse:collapse}
+  .table th,.table td{padding:10px 8px;border-bottom:1px solid var(--border);text-align:left}
+  .table th{color:var(--muted);font-weight:600;font-size:12px;letter-spacing:.2px}
+  .table td.amount-pos{color:var(--good);font-weight:700}
+  .table td.amount-neg{color:var(--bad);font-weight:700}
+  .badge{padding:4px 8px;border-radius:999px;border:1px solid var(--border);background:#0f1624;font-size:12px}
 
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  /* Charts grid */
+  .charts{display:grid;grid-template-columns:2fr 1.2fr;gap:14px;padding:0 18px 18px}
+  @media (max-width:1200px){ .charts{grid-template-columns:1fr} }
+  .chart-card{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .chart-card .hd{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.02)}
+  .chart-card .hd h4{margin:0}
+  .chart-wrap{position:relative;height:280px;padding:12px}
+  @media (max-width:1200px){ .chart-wrap{height:260px} }
 
-    /* Dashboard */
-    .summary, .accounts, .quick-actions { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:16px 18px}
+  @media (max-width:960px){ .grid{grid-template-columns:1fr} }
+  .form{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:14px;display:grid;gap:10px}
+  .form select,.form input{width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);background:#0b101a;color:#e9f2ff}
+  .form button{padding:12px;border-radius:10px;border:1px solid var(--border);font-weight:800;cursor:pointer;background:linear-gradient(90deg,#1e94f5,#21c2f8);color:#021423}
 
-    .card { background: #1c2030; border-radius: 10px; padding: 16px; flex: 1; min-width: 200px; box-shadow: 0 0 12px rgba(0,0,0,0.18); }
-    .card h2 { font-size: 15px; margin-bottom: 8px; color: #ccc; }
-    .card p { font-size: 20px; font-weight: 600; }
+  .toasts{position:absolute;right:18px;top:18px;display:flex;flex-direction:column;gap:10px;z-index:50;pointer-events:none}
+  .toast{min-width:230px;max-width:360px;display:flex;gap:10px;align-items:flex-start;background:#0f1522;border:1px solid var(--border);border-left:4px solid var(--primary);color:#eaf3ff;padding:10px 12px;border-radius:12px;box-shadow:var(--shadow);opacity:.98;transform:translateY(-8px);animation:toastIn .18s ease-out forwards}
+  .toast.success{border-left-color:var(--good)}
+  .toast.error{border-left-color:var(--bad)}
+  @keyframes toastIn{to{opacity:1;transform:none}}
 
-    .account { flex: 1; min-width: 260px; border-radius: 10px; padding: 18px; color: #fff; }
-    .checking { background: linear-gradient(90deg, #2196f3, #00bcd4); }
-    .savings { background: linear-gradient(90deg, #4caf50, #81c784); }
-
-    .quick-actions button { flex: 1; min-width: 160px; border: none; border-radius: 10px; padding: 14px; font-size: 14px; cursor: pointer; transition: 0.12s; color: #000; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; }
-    .transfer-btn { background: #c8e6f9; } .deposit-btn { background: #d0f2d0; } .withdraw-btn { background: #f9d0d0; }
-    .quick-actions button:hover { opacity: 0.95; transform: translateY(-1px); }
-
-    .transactions { background: #1c2030; border-radius: 10px; padding: 14px; }
-    .transaction { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
-    .transaction:last-child { border-bottom: none; }
-    .transaction p { font-size: 14px; }
-    .amount.red { color: #e57373; } .amount.green { color: #81c784; }
-
-    /* Form Pages */
-    .form-page { display: flex; gap: 18px; flex-wrap: wrap; }
-    .form-card { background: #1c2030; border-radius: 10px; padding: 18px; flex: 2; display: flex; flex-direction: column; gap: 12px; }
-    .form-card input, .form-card select { background: #141824; border: none; border-radius: 8px; color: #fff; padding: 10px; font-size: 14px; }
-    .form-card button { margin-top: 8px; padding: 10px; background: linear-gradient(90deg, #2196f3, #00bcd4); border: none; border-radius: 8px; color: #fff; cursor: pointer; font-weight: 600; font-size: 14px; transition: 0.12s; }
-    .form-card button:hover { opacity: 0.95; }
-    .info-card { background: #1c2030; border-radius: 10px; padding: 14px; flex: 1; }
-
-    /* resizer handle (visual & draggable) */
-    .resizer {
-      position: absolute;
-      right: 8px;
-      bottom: 8px;
-      width: 22px;
-      height: 22px;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: se-resize;
-      z-index: 20;
-      opacity: 0.85;
-      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
-      border: 1px solid rgba(255,255,255,0.03);
-      transition: opacity .12s;
-    }
-    .resizer:hover { opacity: 1; }
-    .resizer:after {
-
-      font-size: 12px;
-      color: rgba(255,255,255,0.35);
-      transform: rotate(45deg);
-      line-height: 1;
-    }
-
-    /* make sure small screens still look ok */
-    @media (max-width: 640px) {
-      .app { width: 100%; max-height: 100vh; border-radius: 0; height: calc(100vh - 40px); }
-      header { padding: 10px; }
-      .inner { padding: 12px; }
-      .summary, .accounts, .quick-actions { gap: 10px; }
-      .size-controls { display:none; } /* hide size controls on small screens */
-      .resizer { display:none; }       /* disable resizer on mobile */
-      .app { resize: none; }          /* disable native resize on mobile */
-    }
-  </style>
+  /* Resize handle (bottom-right) */
+  .resize-handle{
+    position:absolute;right:10px;bottom:10px;
+    width:26px;height:26px;border-radius:8px;
+    border:1px solid var(--border);
+    background:rgba(255,255,255,.04);
+    display:flex;align-items:center;justify-content:center;
+    cursor:nwse-resize; z-index:60;
+  }
+  .resize-handle i{font-size:12px;opacity:.9}
+  .resize-handle:hover{filter:brightness(1.1)}
+</style>
 </head>
 <body style="display:none;">
-  <div class="app" role="dialog" aria-modal="true">
-    <header>
-      <div class="logo">FiveM Bank</div>
+<div class="app" role="dialog" aria-modal="true">
+  <aside class="side">
+    <div class="brand"><span class="dot"></span><span>FiveM Bank</span></div>
+    <div class="nav">
+      <button class="tab active" data-target="page-dashboard"><i class="fa-solid fa-gauge"></i>Dashboard</button>
+      <button class="tab" data-target="page-transfer"><i class="fa-solid fa-right-left"></i>Transfer</button>
+      <button class="tab" data-target="page-deposit"><i class="fa-solid fa-arrow-down"></i>Deposit</button>
+      <button class="tab" data-target="page-withdraw"><i class="fa-solid fa-arrow-up"></i>Withdraw</button>
+      <button class="tab" data-target="page-history"><i class="fa-regular fa-clock"></i>History</button>
+    </div>
+  </aside>
 
-      <!-- header-right groups nav + size controls -->
-      <div class="header-right">
-        <nav>
-          <button class="nav-btn active" data-target="dashboard">Dashboard</button>
-          <button class="nav-btn" data-target="transfer">Transfer</button>
-          <button class="nav-btn" data-target="history">History</button>
-        </nav>
+  <section class="main">
+    <div class="topbar"><div class="title">Banking Dashboard</div><div class="hint">ESC to close</div></div>
 
-
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page active">
+      <div class="stats">
+        <div class="kpi"><h4>Total Balance</h4><div class="val" id="totalBalance">$0</div></div>
+        <div class="kpi"><h4>Accounts</h4><div class="val" id="accountsCount">0</div></div>
+        <div class="kpi"><h4>This Month</h4><div class="val" id="thisMonth">+$0</div></div>
+        <div class="kpi"><h4>Transactions</h4><div class="val" id="transactionsCount">0</div></div>
       </div>
-    </header>
 
-    <div class="inner">
-      <!-- Dashboard -->
-      <section id="dashboard" class="container active">
-        <div class="summary">
-          <div class="card"><h2>Total Balance</h2><p id="totalBalance">$0</p></div>
-          <div class="card"><h2>Accounts</h2><p id="accountsCount">0</p></div>
-          <div class="card"><h2>This Month</h2><p id="thisMonth" style="color:#81c784;">+$0</p></div>
-          <div class="card"><h2>Transactions</h2><p id="transactionsCount">0</p></div>
+      <div class="content">
+        <div class="account checking">
+          <h3>Checking</h3>
+          <div class="sub">Card: <span id="checkingCard">—</span> · Acct: <span id="checkingAccount">—</span></div>
+          <div class="amt" id="checkingAmt">$0</div>
         </div>
 
-        <div class="accounts">
-          <div class="account checking">
-            <h2>Checking Account</h2>
-            <p id="checkingAmt" style="font-size:22px;">$0</p>
-            <small>Card Number: <span id="checkingCard">0000 0000 0000 0000</span></small><br>
-            <small>Account: <span id="checkingAccount">0000000000</span></small>
-          </div>
-          <div class="account savings">
-            <h2>Savings Account</h2>
-            <p id="savingsAmt" style="font-size:22px;">$0</p>
-            <small>Card Number: <span id="savingsCard">0000 0000 0000 0000</span></small><br>
-            <small>Account: <span id="savingsAccount">0000000000</span></small>
-          </div>
+        <div class="account savings">
+          <h3>Savings</h3>
+          <div class="sub">Card: <span id="savingsCard">—</span> · Acct: <span id="savingsAccount">—</span></div>
+          <div class="amt" id="savingsAmt">$0</div>
+        </div>
+      </div>
+
+      <!-- CHARTS -->
+      <div class="charts">
+        <div class="chart-card" style="grid-column:1/2">
+          <div class="hd"><h4>Net Flow (Last 30 Days)</h4><span class="hint">Daily net = In − Out</span></div>
+          <div class="chart-wrap"><canvas id="netFlowChart"></canvas></div>
         </div>
 
-        <div class="quick-actions">
-          <button class="transfer-btn" data-target="transfer"><i class="fa-solid fa-right-left"></i> Transfer</button>
-          <button class="deposit-btn" data-target="deposit"><i class="fa-solid fa-money-bill-trend-up"></i> Deposit</button>
-          <button class="withdraw-btn" data-target="withdraw"><i class="fa-solid fa-money-bill-transfer"></i> Withdraw</button>
+        <div class="chart-card" style="grid-column:2/3">
+          <div class="hd"><h4>Balance Breakdown</h4><span class="hint">Cash / Checking / Savings</span></div>
+          <div class="chart-wrap"><canvas id="balancePie"></canvas></div>
         </div>
 
-        <div class="transactions">
-          <h2 style="margin-bottom:12px;">Recent Transactions</h2>
-          <div id="recentTransactions">
-            <div class="transaction"><p>No transactions to display.</p></div>
-          </div>
+        <div class="chart-card" style="grid-column:1/3">
+          <div class="hd"><h4>Weekly In vs Out</h4><span class="hint">Last 8 weeks</span></div>
+          <div class="chart-wrap"><canvas id="weeklyBar"></canvas></div>
         </div>
-      </section>
+      </div>
 
-      <!-- Transfer -->
-      <section id="transfer" class="container">
-        <div class="form-page">
-          <div class="form-card">
-            <select id="transferSource">
-              <option value="">Select source account</option>
-            </select>
-            <select id="transferTo" style="display:none;">
-              <option value="">Select destination account</option>
-            </select>
-            <input id="transferRecipient" type="text" placeholder="Recipient account number or acct:<id>" />
-            <input id="transferAmount" type="number" placeholder="Amount" />
-            <input id="transferDesc" type="text" placeholder="Description (optional)" />
-            <button id="btnTransfer">Transfer Money</button>
-          </div>
-          <div class="info-card">
-            <h3>Transfer Info</h3>
-            <p>Fee: <span style="color:#81c784;">FREE</span></p>
-            <p>Processing Time: Instant</p>
-            <p>Daily Limit: $50,000</p>
-          </div>
+      <div class="panel">
+        <div class="hd"><h4>Recent Transactions</h4><span class="hint">Latest 50</span></div>
+        <div class="body">
+          <table class="table">
+            <thead><tr><th style="width:52%">Description</th><th>When</th><th style="text-align:right">Amount</th></tr></thead>
+            <tbody id="recentTransactions"><tr><td colspan="3" class="hint">No transactions yet.</td></tr></tbody>
+          </table>
         </div>
-      </section>
-
-      <!-- Deposit -->
-      <section id="deposit" class="container">
-        <div class="form-page">
-          <div class="form-card">
-            <select id="depositTarget">
-              <option value="">Select account to deposit into</option>
-            </select>
-            <input id="depositAmount" type="number" placeholder="Amount to deposit" />
-            <input id="depositDesc" type="text" placeholder="Description (optional)" />
-            <button id="btnDeposit">Confirm Deposit</button>
-          </div>
-          <div class="info-card">
-            <h3>Deposit Info</h3>
-            <p>Minimum: $1</p>
-            <p>Processing Time: Instant</p>
-            <small style="color:#aaa;">💡 Tip: Deposits reflect instantly into your selected account.</small>
-          </div>
-        </div>
-      </section>
-
-      <!-- Withdraw -->
-      <section id="withdraw" class="container">
-        <div class="form-page">
-          <div class="form-card">
-            <select id="withdrawSource">
-              <option value="">Select account to withdraw from</option>
-            </select>
-            <input id="withdrawAmount" type="number" placeholder="Amount to withdraw" />
-            <input id="withdrawDesc" type="text" placeholder="Reason (optional)" />
-            <button id="btnWithdraw">Confirm Withdraw</button>
-          </div>
-          <div class="info-card">
-            <h3>Withdraw Info</h3>
-            <p>Fee: <span style="color:#e57373;">$0</span></p>
-            <p>Processing Time: Instant</p>
-            <small style="color:#aaa;">💡 Tip: Make sure your account has enough balance before withdrawal.</small>
-          </div>
-        </div>
-      </section>
-
-      <!-- History -->
-      <section id="history" class="container">
-        <div class="summary">
-          <div class="card"><h2>Total Transactions</h2><p id="histTotal">0</p></div>
-          <div class="card"><h2>Money In</h2><p id="histIn" style="color:#81c784;">+$0</p></div>
-          <div class="card"><h2>Money Out</h2><p id="histOut" style="color:#e57373;">-$0</p></div>
-        </div>
-        <div class="transactions">
-          <div id="historyList">
-            <div class="transaction"><p>No history available.</p></div>
-          </div>
-        </div>
-      </section>
+      </div>
     </div>
 
-    <!-- visible draggable resizer in bottom-right (nice affordance, works in addition to native resize) -->
-    <div class="resizer" id="resizer" title="Drag to resize"></div>
-  </div>
+    <!-- TRANSFER -->
+    <div id="page-transfer" class="page">
+      <div class="grid">
+        <div class="form">
+          <div class="hint">Internal transfer: choose <b>From</b> and <b>To</b> (Cash Wallet or a specific account). Leave “External recipient” empty for internal moves.</div>
+          <select id="transferSource"></select>
+          <select id="transferTo"></select>
+          <input id="transferRecipient" type="text" placeholder="External recipient (charid) — optional"/>
+          <div class="row" style="display:flex;gap:10px">
+            <input id="transferAmount" type="number" placeholder="Amount" style="flex:1"/>
+            <input id="transferDesc" type="text" placeholder="Description (optional)" style="flex:2"/>
+          </div>
+          <button id="btnTransfer"><i class="fa-solid fa-right-left"></i>&nbsp;Transfer Money</button>
+        </div>
+        <div class="form"><div class="hint">Tip: select <b>Cash Wallet</b> to move bank ⇄ wallet.</div></div>
+      </div>
+    </div>
+
+    <!-- DEPOSIT -->
+    <div id="page-deposit" class="page">
+      <div class="grid">
+        <div class="form">
+          <select id="depositTarget"></select>
+          <input id="depositAmount" type="number" placeholder="Amount to deposit"/>
+          <input id="depositDesc" type="text" placeholder="Description (optional)"/>
+          <button id="btnDeposit"><i class="fa-solid fa-arrow-down"></i>&nbsp;Confirm Deposit</button>
+        </div>
+        <div class="form"><div class="hint">Moves cash → checking.</div></div>
+      </div>
+    </div>
+
+    <!-- WITHDRAW -->
+    <div id="page-withdraw" class="page">
+      <div class="grid">
+        <div class="form">
+          <select id="withdrawSource"></select>
+          <input id="withdrawAmount" type="number" placeholder="Amount to withdraw"/>
+          <input id="withdrawDesc" type="text" placeholder="Reason (optional)"/>
+          <button id="btnWithdraw"><i class="fa-solid fa-arrow-up"></i>&nbsp;Confirm Withdraw</button>
+        </div>
+        <div class="form"><div class="hint">Moves checking → cash.</div></div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div id="page-history" class="page">
+      <div class="panel" style="margin:16px 18px">
+        <div class="hd">
+          <h4>Full History</h4>
+          <div class="hint">In: <span id="histIn">+$0</span> · Out: <span id="histOut">-$0</span> · Total: <span id="histTotal">0</span></div>
+        </div>
+        <div class="body">
+          <table class="table">
+            <thead><tr><th style="width:52%">Description</th><th>When</th><th style="text-align:right">Amount</th></tr></thead>
+            <tbody id="historyList"><tr><td colspan="3" class="hint">No history.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="toasts" id="toasts"></div>
+  </section>
+
+  <!-- Resize handle -->
+  <button class="resize-handle" title="Resize" aria-label="Resize">
+    <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
+  </button>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
 <script>
-/*  ---------- Resizer logic (drag to resize) ----------
-    - Adds a mousedown -> mousemove -> mouseup listener to the .resizer
-    - Updates .app.style.width / height as user drags
-    - Updates header inputs to reflect current size
-*/
-
-(function(){
-  const app = document.querySelector('.app');
-  const resizer = document.getElementById('resizer');
-  const inputW = document.getElementById('appWidth');
-  const inputH = document.getElementById('appHeight');
-  const applyBtn = document.getElementById('applySize');
-  const resetBtn = document.getElementById('resetSize');
-
-  const DEFAULT = { w: 1020, h: 720 };
-  // Initialize inputs
-  function updateInputs() {
-    const rect = app.getBoundingClientRect();
-    // Use offsetWidth/Height for integer px
-    inputW.value = Math.round(app.offsetWidth);
-    inputH.value = Math.round(app.offsetHeight);
-  }
-
-  // Apply precise size from inputs (pixels)
-  applyBtn?.addEventListener('click', () => {
-    const w = Math.max(320, Math.round(Number(inputW.value) || DEFAULT.w));
-    const h = Math.max(240, Math.round(Number(inputH.value) || DEFAULT.h));
-    app.style.width = w + 'px';
-    app.style.height = h + 'px';
-  });
-
-  resetBtn?.addEventListener('click', () => {
-    app.style.width = DEFAULT.w + 'px';
-    app.style.height = DEFAULT.h + 'px';
-    updateInputs();
-  });
-
-  // Update inputs on window resize (keeps values accurate)
-  window.addEventListener('resize', updateInputs);
-
-  // Drag-to-resize implementation
-  let dragging = false;
-  let startX=0, startY=0, startW=0, startH=0;
-
-  resizer?.addEventListener('mousedown', (e) => {
-    e.preventDefault();
-    dragging = true;
-    startX = e.clientX;
-    startY = e.clientY;
-    startW = app.offsetWidth;
-    startH = app.offsetHeight;
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'se-resize';
-  });
-
-  window.addEventListener('mousemove', (e) => {
-    if (!dragging) return;
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
-    // optional: enforce max sizes based on viewport
-    const maxW = Math.max(320, window.innerWidth - 80);
-    const maxH = Math.max(240, window.innerHeight - 80);
-    let newW = Math.min(maxW, Math.max(320, startW + dx));
-    let newH = Math.min(maxH, Math.max(240, startH + dy));
-    app.style.width = Math.round(newW) + 'px';
-    app.style.height = Math.round(newH) + 'px';
-    updateInputs();
-  });
-
-  window.addEventListener('mouseup', () => {
-    if (!dragging) return;
-    dragging = false;
-    document.body.style.userSelect = '';
-    document.body.style.cursor = '';
-    updateInputs();
-  });
-
-  // Double-click the resizer resets size
-  resizer?.addEventListener('dblclick', () => {
-    app.style.width = DEFAULT.w + 'px';
-    app.style.height = DEFAULT.h + 'px';
-    updateInputs();
-  });
-
-  // if user uses native CSS resize (drag edge), listen for transition end via polling
-  let pollTimer = null;
-  function startPoll() {
-    stopPoll();
-    pollTimer = setInterval(updateInputs, 80);
-  }
-  function stopPoll() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
-
-  app.addEventListener('mousedown', (e) => {
-    // start polling if user drags native resize handle (can't detect direct event)
-    if (e.target === app) startPoll();
-  });
-  window.addEventListener('mouseup', stopPoll);
-
-  // init on DOM ready
-  updateInputs();
-})();
-</script>
-<script>
-/*
-  Fixed NUI script for the banking UI.
-  - Robustly reads server payloads (payload may arrive as m or m.data when action === 'setData')
-  - Avoids showing placeholder account/card numbers (all-zeros)
-  - Chooses card number from account.card_number, then top-level payload.card_number, then payload.cards[0]
-  - Masks card numbers as "•••• •••• •••• 1234"
-  - Populates select lists with acct:<id> values plus a 'cash' option
-  - Keeps previous UI interactions intact
-*/
-
+/* NUI helper */
 function nui(evt, payload = {}) {
-  try {
+  try{
     const parent = (typeof GetParentResourceName === 'function') ? GetParentResourceName() : null;
-    if (parent) {
-      fetch(`https://${parent}/${evt}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json; charset=utf-8' },
-        body: JSON.stringify(payload)
-      }).catch(e => console.error('nui fetch error', e));
-    } else {
-      // in browser dev testing
-      console.log('NUI POST (simulated):', evt, payload);
-    }
-  } catch (e) { console.error('nui error', e); }
+    if (parent) fetch(`https://${parent}/${evt}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+    else console.log('NUI(sim):', evt, payload);
+  }catch(e){ console.error(e); }
 }
 
-
-function safeSet(id, txt) {
-  try {
-    const el = document.getElementById(id);
-    if (el) el.innerText = txt;
-  } catch (e) { console.error('safeSet', id, e); }
+/* utils */
+const fmt = n => `$${Number(n||0).toFixed(2)}`;
+const strip = s => String(s||'').replace(/\D/g,'');
+const isZeroish = s => { const t=strip(s); return !t || /^0+$/.test(t); };
+const maskCard = s => (!s||isZeroish(s)) ? '—' : `•••• •••• •••• ${strip(s).slice(-4)}`;
+const setTxt = (id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+function toast(type,text){
+  const box=document.getElementById('toasts');
+  const el=document.createElement('div'); el.className='toast '+(type||''); el.innerHTML=`<i class="fa-solid fa-circle-info" style="margin-top:2px"></i><div>${text||''}</div>`;
+  box.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translateY(-8px)'; setTimeout(()=>el.remove(),240); }, 3200);
 }
 
-function fmtMoney(n) { return `$${Number(n || 0).toFixed(2)}`; }
-
-// Helpers for validation & formatting
-function stripDigits(s) { return String(s || '').replace(/\D/g, ''); }
-function isPlaceholderAccountNumber(s) {
-  const t = stripDigits(s);
-  return t.length === 0 || /^0+$/.test(t);
+/* routing (sidebar only) */
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const page = document.getElementById(id); if (page) page.classList.add('active');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.target===id));
+  // fix chart sizing if we switch back to dashboard
+  if(id==='page-dashboard'){ requestAnimationFrame(()=>resizeCharts()); }
 }
-function isPlaceholderCardNumber(s) {
-  const t = stripDigits(s);
-  return t.length === 0 || /^0+$/.test(t);
-}
-function maskCardNumber(num) {
-  if (!num) return '—';
-  const digits = stripDigits(num);
-  if (digits.length < 4) return '—';
-  const last4 = digits.slice(-4);
-  return '•••• •••• •••• ' + last4;
-}
-function formatAccountNumber(num) {
-  if (!num) return '—';
-  if (isPlaceholderAccountNumber(num)) return '—';
-  return String(num);
-}
-
-// Choose a primary account of a given type (prefer positive balance)
-function pickPrimaryAccount(accounts, type) {
-  if (!Array.isArray(accounts)) return null;
-  const byType = accounts.filter(a => String(a.type) === String(type));
-  if (byType.length === 0) return null;
-  for (const a of byType) if (Number(a.balance) > 0) return a;
-  return byType[0];
-}
-
-// Find best card number for an account or payload
-function findCardForAccount(account, payload) {
-  // 1) account.card_number
-  if (account && account.card_number && !isPlaceholderCardNumber(account.card_number)) return String(account.card_number);
-  // 2) top-level payload.card_number
-  if (payload && payload.card_number && !isPlaceholderCardNumber(payload.card_number)) return String(payload.card_number);
-  // 3) payload.cards array first element
-  if (payload && Array.isArray(payload.cards) && payload.cards.length > 0) {
-    const c = payload.cards[0];
-    if (c && c.card_number && !isPlaceholderCardNumber(c.card_number)) return String(c.card_number);
-  }
-  return null;
-}
-
-function buildTransactionRow(tx) {
-  const div = document.createElement('div');
-  div.className = 'transaction';
-  const left = document.createElement('div');
-  const desc = document.createElement('p');
-  desc.innerText = tx.description || tx.label || tx.payee || 'Transaction';
-  const meta = document.createElement('small');
-  meta.style.color = 'rgba(255,255,255,0.6)';
-  // support various timestamp shapes
-  if (tx.date) {
-    try { meta.innerText = new Date(Number(tx.date)).toLocaleString(); } catch(e){ meta.innerText = tx.date; }
-  } else if (tx.schedule_date) {
-    try { meta.innerText = new Date(Number(tx.schedule_date)).toLocaleString(); } catch(e){ meta.innerText = tx.schedule_date; }
-  } else meta.innerText = tx.time || '';
-  left.appendChild(desc);
-  left.appendChild(meta);
-
-  const right = document.createElement('div');
-  const amt = document.createElement('p');
-  const value = Number(tx.amount || 0);
-  amt.innerText = fmtMoney(Math.abs(value));
-  amt.className = 'amount ' + (value < 0 ? 'red' : 'green');
-  right.appendChild(amt);
-
-  div.appendChild(left);
-  div.appendChild(right);
-  return div;
-}
-
-function populateAccountSelects(accounts = []) {
-  function buildOptionText(acct) {
-    const acctNum = formatAccountNumber(acct.account_number || acct.account_number === 0 ? acct.account_number : String(acct.id));
-    const bal = fmtMoney(acct.balance || 0);
-    const typeTitle = acct.type ? (acct.type.charAt(0).toUpperCase() + acct.type.slice(1)) : 'Account';
-    const last4 = acct.card_number && !isPlaceholderCardNumber(acct.card_number) ? ` • Card: **** ${stripDigits(acct.card_number).slice(-4)}` : '';
-    return `${typeTitle} #${acct.id} (Acc: ${acctNum})${last4} — ${bal}`;
-  }
-
-  const selects = [
-    document.getElementById('transferSource'),
-    document.getElementById('transferTo'),
-    document.getElementById('depositTarget'),
-    document.getElementById('withdrawSource')
-  ];
-
-  function setSelectOptions(selectEl) {
-    if (!selectEl) return;
-    selectEl.innerHTML = '';
-    const cashOpt = document.createElement('option');
-    cashOpt.value = 'cash';
-    cashOpt.innerText = 'Cash Wallet';
-    selectEl.appendChild(cashOpt);
-    accounts.forEach(a => {
-      const o = document.createElement('option');
-      o.value = `acct:${a.id}`;
-      o.innerText = buildOptionText(a);
-      selectEl.appendChild(o);
-    });
-  }
-
-  selects.forEach(setSelectOptions);
-
-  // show transferTo if it exists
-  const tTo = document.getElementById('transferTo');
-  if (tTo) tTo.style.display = '';
-}
-
-function applyDataToUI(data = {}) {
-  // Defensive: ensure accounts is an array
-  const accounts = Array.isArray(data.accounts) ? data.accounts : [];
-
-  // Totals
-  const checkingTotal = Number(data.checking || 0);
-  const savingsTotal = Number(data.savings || 0);
-  const bankTotal = Number(data.bank || (checkingTotal + savingsTotal));
-
-  safeSet('totalBalance', fmtMoney(data.total ?? bankTotal));
-  safeSet('accountsCount', accounts.length);
-  // Dynamic "This Month" colour + text
-const monthChange = Number(data.month_change || 0);
-const thisMonthEl = document.getElementById('thisMonth');
-if (thisMonthEl) {
-  const prefix = monthChange >= 0 ? '+' : '-';
-  thisMonthEl.textContent = `${prefix}${fmtMoney(Math.abs(monthChange))}`;
-  thisMonthEl.style.color = monthChange >= 0 ? '#81c784' : '#e57373';
-}
-
-  safeSet('thisMonth', (typeof data.month_change !== 'undefined') ? ((data.month_change >= 0 ? '+' : '-') + fmtMoney(Math.abs(data.month_change))) : '+$0');
-  safeSet('transactionsCount', (Array.isArray(data.transactions) ? data.transactions.length : (data.transactions_count ?? 0)));
-
-  // Pick primary checking & savings
-  const checking = pickPrimaryAccount(accounts, 'checking') || accounts.find(a => a.type === 'checking') || null;
-  const savings  = pickPrimaryAccount(accounts, 'savings')  || accounts.find(a => a.type === 'savings')  || null;
-
-  // Amount displays (prefer account-specific balances if available)
-  safeSet('checkingAmt', fmtMoney((checking && Number(checking.balance) !== NaN) ? Number(checking.balance) : checkingTotal));
-  safeSet('savingsAmt', fmtMoney((savings  && Number(savings.balance) !== NaN) ? Number(savings.balance) : savingsTotal));
-
-  // Account numbers (avoid placeholder)
-  const chkAcctNum = checking ? formatAccountNumber(checking.account_number) : (Array.isArray(accounts) && accounts.length ? formatAccountNumber(accounts[0].account_number) : '—');
-  const svgAcctNum = savings  ? formatAccountNumber(savings.account_number)  : '—';
-  safeSet('checkingAccount', chkAcctNum);
-  safeSet('savingsAccount', svgAcctNum);
-
-  // Card numbers (determine best card for each)
-  const chkCardRaw = findCardForAccount(checking, data);
-  const svgCardRaw = findCardForAccount(savings, data);
-
-  safeSet('checkingCard', maskCardNumber(chkCardRaw));
-  safeSet('savingsCard', maskCardNumber(svgCardRaw));
-
-  // Transactions
-  const txDiv = document.getElementById('recentTransactions');
-  if (txDiv) {
-    txDiv.innerHTML = '';
-    const txs = Array.isArray(data.transactions) ? data.transactions : (Array.isArray(data.payments) ? data.payments : []);
-    if (txs.length === 0) {
-      txDiv.innerHTML = '<div class="transaction"><p>No transactions to display.</p></div>';
-    } else {
-      txs.slice(0, 8).forEach(t => txDiv.appendChild(buildTransactionRow(t)));
-    }
-  }
-
-  // History list
-  const histDiv = document.getElementById('historyList');
-  if (histDiv) {
-    histDiv.innerHTML = '';
-    const hist = Array.isArray(data.history) ? data.history : (Array.isArray(data.transactions) ? data.transactions : []);
-    if (hist.length === 0) histDiv.innerHTML = '<div class="transaction"><p>No history available.</p></div>';
-    else hist.forEach(h => histDiv.appendChild(buildTransactionRow(h)));
-  }
-
-  if (typeof data.money_in !== 'undefined') safeSet('histIn', `+${fmtMoney(data.money_in)}`);
-  if (typeof data.money_out !== 'undefined') safeSet('histOut', `-${fmtMoney(data.money_out)}`);
-  if (typeof data.total_transactions !== 'undefined') safeSet('histTotal', data.total_transactions);
-
-  // populate account selects
-  populateAccountSelects(accounts);
-}
-
-// message listener — handles both `{ action: 'setData', data: ... }` and raw payloads
-window.addEventListener('message', (e) => {
-  const m = e.data;
-  if (!m) return;
-  if (m.action === 'show') { document.body.style.display = 'flex'; nui('getData'); return; }
-  if (m.action === 'hide') { document.body.style.display = 'none'; return; }
-  if (m.action === 'refreshData') { nui('getData'); return; }
-
-  // setData may be sent with { action: 'setData', data: {...} }
-  if (m.action === 'setData') {
-    applyDataToUI(m.data || {});
-    return;
-  }
-
-  // Fallback: sometimes server pushes raw payload (no action), e.g. SendNUIMessage({action='setData', data=d}) vs older flows
-  // If the message looks like a payload (has accounts or card_number etc.), treat it as data
-  if (m.accounts || m.card_number || m.cards) {
-    applyDataToUI(m);
-    return;
-  }
-
-  // transferResult handling
-  if (m.action === 'transferResult') {
-    console.log('transferResult', m);
-    if (m.success) nui('getData');
-  }
+document.addEventListener('click', e=>{
+  const t=e.target.closest('.tab'); if(!t) return;
+  const target=t.dataset.target; if(target){ showPage(target); }
 });
 
-// UI interactions
-document.addEventListener('DOMContentLoaded', () => {
-  // nav buttons
-  document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => {
-    document.querySelectorAll('.container').forEach(c => c.classList.remove('active'));
-    const t = document.getElementById(btn.dataset.target);
-    if (t) t.classList.add('active');
-    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+/* selects and rows */
+function populateSelect(select, accounts){
+  if(!select) return;
+  select.innerHTML='';
+  const cash=document.createElement('option'); cash.value='cash'; cash.textContent='Cash Wallet'; select.appendChild(cash);
+  accounts.forEach(a=>{
+    const o=document.createElement('option'); o.value=`acct:${a.id}`;
+    o.textContent=`${a.type.charAt(0).toUpperCase()+a.type.slice(1)} #${a.id} — ${fmt(a.balance)}${a.card_number&&!isZeroish(a.card_number)?' • **** '+strip(a.card_number).slice(-4):''}`;
+    select.appendChild(o);
+  });
+}
+function row(desc,ts,amt){
+  const tr=document.createElement('tr');
+  const when = ts ? new Date(Number(ts)*1000).toLocaleString() : '';
+  tr.innerHTML = `<td>${desc||'—'}</td><td><span class="badge">${when}</span></td><td style="text-align:right" class="${Number(amt)<0?'amount-neg':'amount-pos'}">${fmt(Math.abs(amt||0))}</td>`;
+  return tr;
+}
+
+/* ===== Charts ===== */
+const css = getComputedStyle(document.documentElement);
+const C = {
+  ink: css.getPropertyValue('--ink').trim() || '#e7eef7',
+  muted: css.getPropertyValue('--muted').trim() || '#9fb0c5',
+  grid: 'rgba(255,255,255,0.08)',
+  border: css.getPropertyValue('--border').trim() || 'rgba(255,255,255,.06)',
+  primary: css.getPropertyValue('--primary').trim() || '#21c2f8',
+  good: css.getPropertyValue('--good').trim() || '#67e3a7',
+  bad: css.getPropertyValue('--bad').trim() || '#ef7b7b'
+};
+Chart.defaults.color = C.ink;
+Chart.defaults.borderColor = C.grid;
+Chart.defaults.font.family = "Inter, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif";
+
+const Charts = { net:null, pie:null, bar:null };
+
+function daysBack(n){
+  const out=[]; const d=new Date(); d.setHours(0,0,0,0);
+  for(let i=n-1;i>=0;i--){ const t=new Date(d); t.setDate(d.getDate()-i); out.push(t); }
+  return out;
+}
+function weekOf(d){
+  const dt=new Date(d); dt.setHours(0,0,0,0);
+  const onejan = new Date(dt.getFullYear(),0,1);
+  const day = Math.floor((dt - onejan) / 86400000) + onejan.getDay() + 1;
+  return Math.ceil(day/7);
+}
+function labelDay(d){ return d.toLocaleDateString(undefined,{month:'short',day:'numeric'}); }
+function labelWeek(d){ return `${d.getFullYear()}·W${String(weekOf(d)).padStart(2,'0')}`; }
+
+/* build/update all charts based on data object */
+function buildCharts(data){
+  const accounts = Array.isArray(data.accounts)?data.accounts:[];
+  const txs = Array.isArray(data.transactions)?data.transactions:[];
+  // Normalize amounts
+  const clean = txs.map(t=>({ ts:Number(t.ts)||0, amount:Number(t.amount)||0, description:t.description||t.type||'' }))
+                   .filter(t=>t.ts>0).sort((a,b)=>a.ts-b.ts);
+
+  // 30-day daily net
+  const days = daysBack(30);
+  const dailyNet = days.map(d=>{
+    const start = d.getTime()/1000, end = start + 86400;
+    const sum = clean.reduce((acc,t)=> acc + ((t.ts>=start && t.ts<end)? t.amount : 0), 0);
+    return sum;
+  });
+  const netLabels = days.map(labelDay);
+
+  // 8-week in vs out
+  const eightWeeks = [];
+  (function collectWeeks(){
+    const today=new Date(); today.setHours(0,0,0,0);
+    for(let i=7;i>=0;i--){
+      const ref=new Date(today); ref.setDate(today.getDate()-i*7);
+      eightWeeks.push({ label: labelWeek(ref), start: new Date(ref.getFullYear(), ref.getMonth(), ref.getDate()-ref.getDay()), in:0, out:0 });
+    }
+  })();
+  eightWeeks.forEach(w=>{
+    const start = w.start.getTime()/1000;
+    const end = start + 7*86400;
+    clean.forEach(t=>{
+      if(t.ts>=start && t.ts<end){
+        if(t.amount>=0) w.in += t.amount; else w.out += Math.abs(t.amount);
+      }
+    });
+  });
+
+  // Balance pie
+  const checking = accounts.find(a=>a.type==='checking');
+  const savings  = accounts.find(a=>a.type==='savings');
+  const cash = Number(data.cash||0);
+  const pieVals = [
+    cash,
+    Number(checking?checking.balance:0),
+    Number(savings?savings.balance:0)
+  ];
+  const pieLabels = ['Cash Wallet','Checking','Savings'];
+
+  // Create / update charts
+  const netCtx = document.getElementById('netFlowChart');
+  const pieCtx = document.getElementById('balancePie');
+  const barCtx = document.getElementById('weeklyBar');
+
+  if(Charts.net){ Charts.net.data.labels = netLabels; Charts.net.data.datasets[0].data = dailyNet; Charts.net.update(); }
+  else Charts.net = new Chart(netCtx, {
+    type:'line',
+    data:{ labels: netLabels, datasets:[{
+      label:'Daily Net',
+      data: dailyNet,
+      fill:true,
+      tension:.3,
+      borderWidth:2,
+      borderColor:C.primary,
+      backgroundColor:'rgba(33,194,248,0.18)',
+      pointRadius:0,
+      pointHoverRadius:3
+    }]},
+    options:{
+      maintainAspectRatio:false,
+      scales:{
+        x:{ grid:{display:false}, ticks:{ autoSkip:true, maxTicksLimit:7, color:C.muted }},
+        y:{ grid:{color:C.grid}, ticks:{ color:C.muted }}
+      },
+      plugins:{
+        legend:{ display:false },
+        tooltip:{ mode:'index', intersect:false, callbacks:{ label:(ctx)=> `${ctx.dataset.label}: ${fmt(ctx.parsed.y)}` } }
+      }
+    }
+  });
+
+  if(Charts.pie){ Charts.pie.data.labels = pieLabels; Charts.pie.data.datasets[0].data = pieVals; Charts.pie.update(); }
+  else Charts.pie = new Chart(pieCtx, {
+    type:'doughnut',
+    data:{ labels: pieLabels, datasets:[{
+      data: pieVals,
+      borderWidth:1,
+      borderColor:C.border,
+      backgroundColor:[
+        'rgba(231,238,247,0.25)',
+        'rgba(33,194,248,0.45)',
+        'rgba(103,227,167,0.45)'
+      ]
+    }]},
+    options:{
+      maintainAspectRatio:false,
+      cutout:'62%',
+      plugins:{
+        legend:{ position:'bottom', labels:{ color:C.muted, boxWidth:12, boxHeight:12 } },
+        tooltip:{ callbacks:{ label:(ctx)=> `${ctx.label}: ${fmt(ctx.parsed)}` } }
+      }
+    }
+  });
+
+  if(Charts.bar){
+    Charts.bar.data.labels = eightWeeks.map(w=>w.label);
+    Charts.bar.data.datasets[0].data = eightWeeks.map(w=>w.in);
+    Charts.bar.data.datasets[1].data = eightWeeks.map(w=>w.out);
+    Charts.bar.update();
+  } else Charts.bar = new Chart(barCtx, {
+    type:'bar',
+    data:{
+      labels: eightWeeks.map(w=>w.label),
+      datasets:[
+        { label:'In',  data: eightWeeks.map(w=>w.in),  backgroundColor:'rgba(103,227,167,0.7)', borderColor:C.border, borderWidth:1 },
+        { label:'Out', data: eightWeeks.map(w=>w.out), backgroundColor:'rgba(239,123,123,0.7)', borderColor:C.border, borderWidth:1 }
+      ]
+    },
+    options:{
+      maintainAspectRatio:false,
+      scales:{
+        x:{ stacked:true, ticks:{ color:C.muted }, grid:{ display:false } },
+        y:{ stacked:true, ticks:{ color:C.muted }, grid:{ color:C.grid } }
+      },
+      plugins:{
+        legend:{ labels:{ color:C.muted } },
+        tooltip:{ callbacks:{ label:(ctx)=> `${ctx.dataset.label}: ${fmt(ctx.parsed.y)}` } }
+      }
+    }
+  });
+}
+
+function resizeCharts(){
+  Object.values(Charts).forEach(ch=>{ try{ ch && ch.resize(); }catch(e){} });
+}
+
+/* data apply */
+function applyData(data){
+  const accounts = Array.isArray(data.accounts)?data.accounts:[];
+  const checking = accounts.find(a=>a.type==='checking');
+  const savings  = accounts.find(a=>a.type==='savings');
+
+  const bankTotal = Number(data.bank||0);
+  const cash      = Number(data.cash||0);
+  setTxt('totalBalance', fmt(bankTotal + cash));
+  setTxt('accountsCount', accounts.length);
+  const mc = Number(data.month_change||0); setTxt('thisMonth', `${mc>=0?'+':'-'}${fmt(Math.abs(mc))}`);
+  setTxt('transactionsCount', Array.isArray(data.transactions)?data.transactions.length:0);
+
+  setTxt('checkingAmt', fmt(checking?checking.balance:0));
+  setTxt('savingsAmt',  fmt(savings?savings.balance:0));
+  setTxt('checkingAccount', checking? (checking.account_number || '—') : '—');
+  setTxt('savingsAccount',  savings ? (savings.account_number  || '—') : '—');
+  setTxt('checkingCard', maskCard(checking && checking.card_number));
+  setTxt('savingsCard',  maskCard(savings  && savings.card_number));
+
+  const txs = Array.isArray(data.transactions)?data.transactions:[];
+  const recent = document.getElementById('recentTransactions');
+  recent.innerHTML = txs.length? '' : '<tr><td colspan="3" class="hint">No transactions yet.</td></tr>';
+  txs.slice(0,10).forEach(t=>recent.appendChild(row(t.description||t.type,t.ts,t.amount)));
+
+  const hist = document.getElementById('historyList');
+  hist.innerHTML = txs.length? '' : '<tr><td colspan="3" class="hint">No history.</td></tr>';
+  txs.forEach(t=>hist.appendChild(row(t.description||t.type,t.ts,t.amount)));
+  setTxt('histTotal', txs.length);
+  if (typeof data.money_in !== 'undefined') setTxt('histIn','+'+fmt(data.money_in));
+  if (typeof data.money_out !== 'undefined') setTxt('histOut','-'+fmt(data.money_out));
+
+  populateSelect(document.getElementById('transferSource'), accounts);
+  populateSelect(document.getElementById('transferTo'), accounts);
+  populateSelect(document.getElementById('depositTarget'), accounts);
+  populateSelect(document.getElementById('withdrawSource'), accounts);
+
+  // (re)build charts with latest data
+  buildCharts({accounts, transactions: txs, cash});
+}
+
+/* message bridge */
+window.addEventListener('message', (e)=>{
+  const m=e.data||{};
+  if (m.action==='show'){ document.body.style.display='block'; showPage('page-dashboard'); nui('getData'); requestAnimationFrame(()=>resizeCharts()); return; }
+  if (m.action==='hide'){ document.body.style.display='none'; return; }
+  if (m.action==='refreshData'){ nui('getData'); return; }
+  if (m.action==='setData'){ applyData(m.data||{}); return; }
+  if (m.accounts||m.transactions){ applyData(m); return; }
+  if (m.action==='notify' && m.payload){ toast(m.payload.type||'info', m.payload.text||''); return; }
+  if (m.action==='transferResult' && m.payload){ if(m.payload.success) toast('success','Transfer completed'); else toast('error', m.payload.error||'Transfer failed'); return; }
+});
+
+/* cookie helpers for size */
+function setSizeCookie(obj){
+  try{
+    const val = encodeURIComponent(JSON.stringify(obj||{}));
+    const d = new Date(); d.setTime(d.getTime()+30*24*60*60*1000);
+    document.cookie = `bank_ui_size=${val}; expires=${d.toUTCString()}; path=/`;
+  }catch(e){}
+}
+function getSizeCookie(){
+  try{
+    const item = document.cookie.split('; ').find(x=>x.startsWith('bank_ui_size='));
+    if(!item) return null;
+    return JSON.parse(decodeURIComponent(item.split('=')[1]||'{}'));
+  }catch(e){ return null; }
+}
+
+/* boot */
+document.addEventListener('DOMContentLoaded', ()=>{
+  const once=(key,fn)=>{ if(window.__busy?.[key])return; window.__busy=window.__busy||{}; window.__busy[key]=1; try{fn()}finally{ setTimeout(()=>window.__busy[key]=0,700)} };
+
+  /* actions */
+  document.getElementById('btnDeposit')?.addEventListener('click',()=>once('dep',()=>{
+    const payload = {
+      to: document.getElementById('depositTarget').value,
+      amount: Number(document.getElementById('depositAmount').value||0),
+      description: document.getElementById('depositDesc').value||''
+    };
+    nui('deposit', payload); toast('success','Deposit sent'); setTimeout(()=>nui('getData'), 300);
   }));
 
-  // quick actions
-  document.querySelectorAll('.quick-actions button[data-target]').forEach(btn => btn.addEventListener('click', () => {
-    document.querySelectorAll('.container').forEach(c => c.classList.remove('active'));
-    const t = document.getElementById(btn.dataset.target);
-    if (t) t.classList.add('active');
+  document.getElementById('btnWithdraw')?.addEventListener('click',()=>once('wd',()=>{
+    const payload = {
+      from: document.getElementById('withdrawSource').value,
+      amount: Number(document.getElementById('withdrawAmount').value||0),
+      reason: document.getElementById('withdrawDesc').value||''
+    };
+    nui('withdraw', payload); toast('success','Withdraw requested'); setTimeout(()=>nui('getData'), 300);
   }));
 
-  // Transfer
-  document.getElementById('btnTransfer')?.addEventListener('click', () => {
-    const from = document.getElementById('transferSource')?.value || 'cash';
-    let toVal = '';
-    const toSelect = document.getElementById('transferTo');
-    if (toSelect && toSelect.value) toVal = toSelect.value;
-    else {
-      const recipient = document.getElementById('transferRecipient')?.value || '';
-      toVal = recipient.startsWith('acct:') ? recipient : recipient || '';
+  document.getElementById('btnTransfer')?.addEventListener('click',()=>once('xfer',()=>{
+    const from = document.getElementById('transferSource').value;
+    const to   = document.getElementById('transferTo').value;
+    const recip= (document.getElementById('transferRecipient').value||'').trim();
+    const amount = Number(document.getElementById('transferAmount').value||0);
+    const description = document.getElementById('transferDesc').value||'';
+    if (recip) { nui('transfer', { target:recip, amount, description }); toast('success','External transfer submitted'); }
+    else { nui('transferInternal', { from, to, amount, description }); toast('success','Internal transfer submitted'); }
+    setTimeout(()=>nui('getData'), 300);
+  }));
+
+  document.addEventListener('keydown', e=>{ if (e.key==='Escape'){ document.body.style.display='none'; nui('close') } });
+
+  /* resize handle */
+  (function initResizer(){
+    const app = document.querySelector('.app');
+    const handle = document.querySelector('.resize-handle');
+    const MIN_W = 820, MIN_H = 520;
+
+    /* load saved size */
+    const saved = getSizeCookie();
+    if (saved && saved.w && saved.h){
+      app.style.width = Math.max(MIN_W, saved.w) + 'px';
+      app.style.height= Math.max(MIN_H, saved.h) + 'px';
     }
-    const payload = {
-      from: from || 'cash',
-      to: toVal || '',
-      amount: Number(document.getElementById('transferAmount')?.value || 0),
-      description: document.getElementById('transferDesc')?.value || ''
-    };
-    nui('transferInternal', payload);
-    // optimistic refresh
-    setTimeout(() => nui('getData'), 300);
-  });
 
-  // Deposit
-  document.getElementById('btnDeposit')?.addEventListener('click', () => {
-    const payload = {
-      to: document.getElementById('depositTarget')?.value || '',
-      amount: Number(document.getElementById('depositAmount')?.value || 0),
-      description: document.getElementById('depositDesc')?.value || ''
-    };
-    nui('deposit', payload);
-    setTimeout(() => nui('getData'), 300);
-  });
-
-  // Withdraw
-  document.getElementById('btnWithdraw')?.addEventListener('click', () => {
-    const payload = {
-      from: document.getElementById('withdrawSource')?.value || '',
-      amount: Number(document.getElementById('withdrawAmount')?.value || 0),
-      reason: document.getElementById('withdrawDesc')?.value || ''
-    };
-    nui('withdraw', payload);
-    setTimeout(() => nui('getData'), 300);
-  });
-
-  // Escape hides the UI and tells host
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      document.body.style.display = 'none';
-      nui('close');
+    let sx=0, sy=0, sw=0, sh=0, dragging=false;
+    function onDown(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      const r = app.getBoundingClientRect();
+      sx=ev.clientX; sy=ev.clientY; sw=r.width; sh=r.height; dragging=true;
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
     }
-  });
+    function onMove(ev){
+      if(!dragging) return;
+      const dx = ev.clientX - sx, dy = ev.clientY - sy;
+      let w = Math.max(MIN_W, Math.min(window.innerWidth - 20, sw + dx));
+      let h = Math.max(MIN_H, Math.min(window.innerHeight - 40, sh + dy));
+      app.style.width = w + 'px';
+      app.style.height= h + 'px';
+      resizeCharts();
+    }
+    function onUp(){
+      dragging=false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      const rect = app.getBoundingClientRect();
+      setSizeCookie({ w: Math.round(rect.width), h: Math.round(rect.height) });
+      resizeCharts();
+    }
+    handle?.addEventListener('mousedown', onDown);
+    window.addEventListener('resize', ()=>{
+      const rect = app.getBoundingClientRect();
+      const w = Math.min(rect.width, window.innerWidth - 20);
+      const h = Math.min(rect.height, window.innerHeight - 40);
+      app.style.width = Math.max(MIN_W, w) + 'px';
+      app.style.height= Math.max(MIN_H, h) + 'px';
+      resizeCharts();
+    });
+  })();
 
-  // initial request
-  setTimeout(() => { nui('getData'); }, 150);
+  setTimeout(()=>nui('getData'), 150);
 });
 </script>
-
 </body>
 </html>
