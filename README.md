@@ -1,9 +1,12 @@
 # Az-Banking
-Azure Framework Banking
 
+This standalone resource has been merged into Az-Framework 2.0.
 
-<img width="1118" height="743" alt="image" src="https://github.com/user-attachments/assets/0d296c57-643a-492e-af20-98d1dc0914ef" />
-<img width="568" height="684" alt="image" src="https://github.com/user-attachments/assets/d13de632-91d1-4e0b-8392-a1dc37cc6c05" />
-<img width="1105" height="730" alt="image" src="https://github.com/user-attachments/assets/fbbbc59b-0057-40ae-9464-70342b5b351b" />
-<img width="1431" height="852" alt="image" src="https://github.com/user-attachments/assets/9f48be39-796d-4a70-bfaa-596f8dddc2ed" />
-<img width="1413" height="845" alt="image" src="https://github.com/user-attachments/assets/c3b0ba11-e9df-4373-8fb0-7fc185ad1abc" />
+Use `Az-Framework/modules/banking` through the main `Az-Framework` resource instead of installing this repository as a separate FiveM resource.
+
+## Migration
+
+1. Remove `ensure Az-Banking` from `server.cfg`.
+2. Make sure `ensure Az-Framework` starts after `oxmysql` and `ox_lib`.
+3. Update exports/events to use `exports['Az-Framework']` where applicable.
+4. Keep this repository as a migration notice only.
